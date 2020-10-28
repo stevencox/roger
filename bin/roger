@@ -1,0 +1,130 @@
+#set -x
+set -e
+
+namespace=scox
+release=redisgraph
+image_repository=redislabs/redisgraph
+image_tag=2.2.4
+
+# https://github.com/bitnami/charts/tree/master/bitnami/redis
+init () {
+    helm repo add bitnami https://charts.bitnami.com/bitnami
+}
+start () {
+    helm install $release \
+	 --set image.repository=$image_repository \
+	 --set image.tag=$image_tag \
+	 --set master.command= \
+	 --set slave.command= \
+	 --namespace=$namespace \
+	 bitnami/redis
+}
+start () {
+    helm install $release \
+	 --set image.repository=$image_repository \
+	 --set image.tag=$image_tag \
+	 --namespace=$namespace \
+	 bitnami/redis
+}
+stop () {
+    helm delete $release \
+	 --namespace=$namespace
+}
+restart () {
+    stop
+    start
+}
+status () {
+    kubectl --namespace=$namespace get pods | grep $release
+    export REDIS_PASSWORD=$(kubectl get secret --namespace $namespace redisgraph -o jsonpath="{.data.redis-password}" | base64 --decode)
+}
+client () {
+    #kubectl port-forward --namespace $namespace svc/redisgraph-master 6380:6379 &
+    redis-cli -h 127.0.0.1 -p 6380 -a $REDIS_PASSWORD
+}
+#----------------------------
+export ROGER_HOME=~/dev/roger
+export DATA_HOME=$ROGER_HOME/roger/data
+export PYTHONPATH=~/dev/kgx:$ROGER_HOME
+export DB_NAME=test
+roger () {
+    python $ROGER_HOME/roger/core.py $*
+}
+
+kgx () {
+    get () {
+	time roger --get-kgx $*
+    }
+    schema () {
+	time roger --create-schema
+    }
+    clean () {
+	schema () {
+	    rm -rf $DATA_HOME/kgx
+	}
+	cache () {
+	    rm -rf $DATA_HOME/schema
+	}
+	$*
+    }
+    $*
+}
+
+bulk () {
+    create () {
+	time roger --create-bulk
+    }
+    load () {
+	redis-cli GRAPH.DELETE $DB_NAME
+	nargs=$(echo data/bulk/nodes/* | sed -e 's, , --nodes ,g')
+	rargs=$(echo data/bulk/edges/* | sed -e 's, , --relations ,g')
+	do_load --nodes $nargs --relations $rargs
+    }
+    do_load () {
+	echo deleting existing graph...
+	redis-cli GRAPH.DELETE test || true
+	echo running bulk load...
+	time redisgraph-bulk-loader test $* --separator "|"
+    }
+    clean () {
+	rm -rf $DATA_HOME/bulk
+    }
+    $*
+}
+
+vars="
+TOPMED.TAG:8
+TOPMED.VAR:phv00000484.v1.p10
+TOPMED.VAR:phv00000487.v1.p10
+TOPMED.VAR:phv00000496.v1.p10
+TOPMED.VAR:phv00000517.v1.p10
+TOPMED.VAR:phv00000518.v1.p10
+TOPMED.VAR:phv00000528.v1.p10
+TOPMED.VAR:phv00000529.v1.p10
+TOPMED.VAR:phv00000530.v1.p10
+TOPMED.VAR:phv00000531.v1.p10"
+validate () {
+    time redis-cli GRAPH.QUERY $DB_NAME "MATCH (a) RETURN count(a)"
+    time redis-cli GRAPH.QUERY $DB_NAME "MATCH (a)-[e]-(b) RETURN count(e)"
+    for v in $vars; do
+	query="MATCH (a { id : '$v' })--(b) RETURN a.category, b.id"
+	echo $query
+	time redis-cli GRAPH.QUERY $DB_NAME "$query"
+    done
+    time redis-cli GRAPH.QUERY $DB_NAME "MATCH (a)-[e]-(b) RETURN count(a), count(b)"
+
+}
+
+full () {
+    kgx clean schema
+    bulk clean
+    kgx get
+    kgx schema
+    bulk create
+    bulk load
+    validate
+}
+
+$*
+
+exit 0

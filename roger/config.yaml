@@ -10,5 +10,4 @@ logging:
   format: '[%(name)s][%(filename)s][%(funcName)20s] %(levelname)s: %(message)s'
 
 data_root: data
-kgx_repo: kgx_repo
-local_cache: https://stars.renci.org/var/kgx_data
+base_data_uri: https://stars.renci.org/var/kgx_data
