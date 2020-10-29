@@ -4,6 +4,7 @@ import json
 import os
 import requests
 import shutil
+import time
 import yaml
 import sys
 import traceback
@@ -15,7 +16,6 @@ from biolink import model
 
 log = get_logger ()
 config = get_config ()
-
 data_root = config['data_root']
     
 class SchemaType(Enum):
@@ -31,9 +31,26 @@ class FileFormat(Enum):
     YAML = "yaml"
     
 class Util:
+
+    @staticmethod
+    def current_time_in_millis():
+        """
+        Get current time in milliseconds.
+        
+        Returns
+        -------
+        int
+        Time in milliseconds
+        
+        """
+        return int(round(time.time() * 1000))
+
     """ A just do it approach to getting data. """
     @staticmethod
     def read_file(path):
+        """ Read a file. 
+        :param path: Path to a file.
+        """
         text = None
         with open(path, "r") as stream:
             text = stream.read ()
@@ -41,10 +58,14 @@ class Util:
     
     @staticmethod
     def read_url(url):
+        """ Read data from a URL.
+        :param url: The URL to read. """
         return requests.get (url).text
     
     @staticmethod
     def read_data(path):
+        """ Read data from a URL or File. HTTP(S) is the only supported protocol.
+        :param path: A URL or file path. """
         text = None
         if Util.is_web(path):
             text = Util.read_url (path)
@@ -54,6 +75,10 @@ class Util:
     
     @staticmethod
     def read_object(path, key=None):
+        """ Read on object from a path. 
+        :param path: A URL or file path. Supports YAML and JSON depending on extension.
+        :param key: A configuration key. This is prepended to the path if present.
+        :raises ValueError: If the key is not in the configuration. """
         if key is not None:
             prefix = config[key]
             path = f"{prefix}/{path}" if Util.is_web(prefix) \
@@ -67,10 +92,17 @@ class Util:
 
     @staticmethod
     def is_web (uri):
+        """ The URI is a web URI (starts with http or https).
+        :param uri: A URI """
         return uri.startswith("http://") or uri.startswith ("https://")
     
     @staticmethod
-    def write_object (obj, path, key=None, form:FileFormat=FileFormat.JSON):
+    def write_object (obj, path, key=None):
+        """ Write an object to a path. YAML and JSON supported based on extension.
+        :param obj: The object to write.
+        :param path: The path to write to.
+        :param key: The configuration key to prepend to the path.
+        """
         """ Prepend a prefix from the configuration file if a key is given. """
         if key is not None:
             prefix = config[key]
@@ -81,44 +113,68 @@ class Util:
         if not os.path.exists (dirname):
             os.makedirs (dirname, exist_ok=True)
         """ Write the file in the specified format. """
-        if form == FileFormat.JSON:
-            with open (path, "w") as stream:
-                json.dump (obj, stream, indent=2)
-        elif form == FileFormat.YAML:
+        if path.endswith (".yaml") or path.endswith (".yml"):
             with open(path, 'w') as outfile:
                 yaml.dump (obj, stream)
+        elif path.endswith (".json"):
+            with open (path, "w") as stream:
+                json.dump (obj, stream, indent=2)
         else:
             """ Raise an exception if invalid. """
-            raise ValueError (f"Unknown format: {form}")
+            raise ValueError (f"Unrecognized extension: {path}")
 
     @staticmethod
     def kgx_path (name):
+        """ Form a KGX object path.
+        :path name: Name of the KGX object. """
         return os.path.join (data_root, "kgx", name)
 
     @staticmethod
     def kgx_objects ():
+        """ A list of KGX objects. """
         kgx_pattern = Util.kgx_path("**.json")
         return sorted(glob.glob (kgx_pattern))
+    
+    @staticmethod
+    def merge_path (name):
+        """ Form a merged KGX object path.
+        :path name: Name of the merged KGX object. """
+        return os.path.join (data_root, "merge", name)
+
+    @staticmethod
+    def merged_objects ():
+        """ A list of merged KGX objects. """
+        merged_pattern = Util.merge_path("**.json")
+        return sorted(glob.glob (merged_pattern))
         
     @staticmethod
     def schema_path (name):
+        """ Path to a schema object.
+        :param name: Name of the object to get a path for. """
         return os.path.join (data_root, "schema", name)
 
     @staticmethod
     def bulk_path (name):
+        """ Path to a bulk load object.
+        :param name: Name of the object. """
         return os.path.join (data_root, "bulk", name)
 
     @staticmethod
     def read_schema (schema_type: SchemaType):
+        """ Read a schema object.
+        :param schema_type: Schema type of the object to read. """
         path = Util.schema_path (f"{schema_type.value}-schema.json")
         return Util.read_object (path)
     
     @staticmethod
     def get_uri (path, key):
+        """ Build a URI.
+        :param path: The path of an object.
+        :param key: The key of a configuration value to prepend to the object. """
         return f"{config[key]}/{path}"
 
 class KGXModel:
-    
+    """ Abstractions for transforming Knowledge Graph Exchange formatted data. """
     def __init__(self, biolink):
         self.biolink = biolink
         
@@ -128,10 +184,10 @@ class KGXModel:
         :param dataset_version: Data version to operate on.
         """
         metadata = Util.read_object ("metadata.yaml", key="data_root")
-        log.debug (json.dumps (metadata, indent=2))
         for item in metadata['versions']:
             if item['version'] == dataset_version:
-                for edge_url in item['edgeFiles']:
+                for edge_url in item['edgeFiles']:                    
+                    start = Util.current_time_in_millis ()
                     edge_url = Util.get_uri (edge_url, "base_data_uri")
                     node_url = edge_url.replace ("-edge-", "-node-")
                     subgraph_basename = os.path.basename (edge_url.replace ("-edge", ""))
@@ -139,32 +195,33 @@ class KGXModel:
                     if os.path.exists (subgraph_path):
                         log.info (f"using cached graph: {subgraph_path}")
                         continue
-                    log.debug (f"Getting edges: {edge_url}, nodes: {node_url}")
                     subgraph = {
                         "edges" : Util.read_object (edge_url),
                         "nodes" : Util.read_object (node_url)
                     }
                     Util.write_object (subgraph, subgraph_path)
-                    edge_count = len(subgraph['edges'])
-                    node_count = len(subgraph['nodes'])
-                    log.debug (f"Wrote {subgraph_path}: edges: {edge_count}, nodes: {node_count}")
-                    
+                    total_time = Util.current_time_in_millis () - start
+                
+                    edges = len(subgraph['edges'])
+                    nodes = len(subgraph['nodes'])
+                    #log.debug (f"Wrote {subgraph_path}: edges:{edges}, nodes: {nodes} time:{total_time}")
+                    log.debug ("Wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format (
+                        subgraph_path, edges, nodes, total_time))
+
     def create_schema (self):
         """
         Determine the schema of each type of object. We have to do this to make it possible
         to write tabular data. Need to know all possible columns in advance and correct missing
         fields.
-
-        TODO: Need to merge duplicate nodes.
         """
         predicate_schemas = defaultdict(lambda:None)
         category_schemas = defaultdict(lambda:None)
         for subgraph in Util.kgx_objects ():
             """ Read a kgx data file. """
+            log.debug (f"analyzing schema of {subgraph}.")
             basename = os.path.basename (subgraph).replace (".json", "")
             graph = Util.read_object (subgraph)
             """ Infer predicate schemas. """
-            log.debug ("analyzing edge schemas.")
             for edge in graph['edges']:
                 predicate = edge['edge_label']
                 if not predicate in predicate_schemas:
@@ -176,7 +233,6 @@ class KGXModel:
                         if not k in predicate_schemas[predicate]:
                             predicate_schemas[predicate][k] = ''
             """ Infer node schemas. """
-            log.debug ("analyzing node schemas.")
             for node in graph['nodes']:
                 node_type = self.biolink.get_leaf_class (node['category'])
                 if not node_type in category_schemas:
@@ -191,8 +247,67 @@ class KGXModel:
         self.write_schema (predicate_schemas, SchemaType.PREDICATE)
         self.write_schema (category_schemas, SchemaType.CATEGORY)
 
+    def merge_nodes (self, L, R):
+        for k in L.keys ():
+            R_v = R.get (k, None)
+            if R_v == '' or R_v == None:
+                L[k] = R_v
+
+    def diff_lists (self, L, R):
+        return list(list(set(L)-set(R)) + list(set(R)-set(L)))
+
+    def merge (self):
+        """ Merge nodes. Would be good to have something less computationally intensive. """
+        for path in Util.kgx_objects ():
+            new_path = path.replace ('/kgx/', '/merge/')
+            if os.path.exists (new_path):
+                log.info (f"using cached merge: {new_path}")
+                continue
+            log.info (f"merging {path}")
+            graph = Util.read_object (path)
+            graph_nodes = graph.get ('nodes', [])
+            graph_map = { n['id'] : n for n in graph_nodes }
+            graph_keys = graph_map.keys ()
+            total_merge_time = 0
+            for path_2 in Util.kgx_objects ():
+                if path_2 == path:
+                    continue
+                start = Util.current_time_in_millis ()
+                other_graph = Util.read_object (path_2)
+                load_time = Util.current_time_in_millis () - start
+
+                start = Util.current_time_in_millis ()                
+                other_nodes = other_graph.get('nodes', [])
+                other_map = { n['id'] : n for n in other_nodes }
+                other_keys = set(other_map.keys())
+                intersection = [ v for v in graph_keys if v in other_keys ]
+                difference = list(set(other_keys) - set(graph_keys))
+                scope_time = Util.current_time_in_millis () - start
+                
+                start = Util.current_time_in_millis ()
+                for i in intersection:
+                    self.merge_nodes (graph_map[i], other_map[i])
+                other_graph['nodes'] = [ other_map[i] for i in difference ]
+                merge_time = Util.current_time_in_millis () - start
+                
+                start = Util.current_time_in_millis ()
+                Util.write_object (other_graph, path_2.replace ('kgx', 'merge'))
+                write_time = Util.current_time_in_millis () - start
+                log.debug ("merged {:>45} load:{:>5} scope:{:>7} merge:{:>3}".format(
+                    path_2, load_time, scope_time, merge_time))
+                total_merge_time += load_time + scope_time + merge_time + write_time
+                
+            start = Util.current_time_in_millis ()
+            Util.write_object (graph, new_path)
+            rewrite_time = Util.current_time_in_millis () - start
+            log.info (f"{path} rewrite: {rewrite_time}. total merge time: {total_merge_time}")
+
     def format_keys (self, keys, schema_type : SchemaType):
-        """ Format schema keys. """
+        """ Format schema keys. Make source and destination first in edges. Make
+        id first in nodes. Remove keys for fields we can't yet represent.
+        :param keys: List of keys.
+        :param schema_type: Type of schema to conform to.
+        """
         """ Sort keys. """
         k_list = sorted(keys)
         if schema_type == SchemaType.PREDICATE:
@@ -212,22 +327,22 @@ class KGXModel:
         return k_list
 
     def write_schema (self, schema, schema_type: SchemaType):
-        """ Output the schema file. """
+        """ Output the schema file. 
+        :param schema: Schema to get keys from.
+        :param schema_type: Type of schema to write. """
         file_name = Util.schema_path (f"{schema_type.value}-schema.json")
         log.info (f"writing schema: {file_name}")
         dictionary = { k : self.format_keys(v.keys(), schema_type)  for k, v in schema.items () }
         Util.write_object (dictionary, file_name)
 
     def load (self):
-        """ Use KGX to load a data set. """
+        """ Use KGX to load a data set into Redisgraph """
         input_format = "json"
         uri = f"redis://{config['redisgraph']['host']}:{config['redisgraph']['ports']['http']}/"
         username = config['redisgraph']['username']
         password = config['redisgraph']['password']
         log.info (f"connecting to redisgraph: {uri}")
         for subgraph in glob.glob (f"{kgx_repo}/**.json"):
-            if 'pharos' in subgraph:
-                continue
             redisgraph_upload(inputs=[ subgraph ],
                               input_format=input_format,
                               input_compression=None,
@@ -262,7 +377,7 @@ class BiolinkModel:
         return leaves [0]
 
 class BulkLoad:
-
+    """ Tools for creating a Redisgraph bulk load dataset. """
     def __init__(self, biolink):
         self.biolink = biolink
         
@@ -270,11 +385,13 @@ class BulkLoad:
         """ Format the data for bulk load. """
         predicates_schema = Util.read_schema (SchemaType.PREDICATE)
         categories_schema = Util.read_schema (SchemaType.CATEGORY)
-        shutil.rmtree(Util.bulk_path(""))
+        bulk_path = Util.bulk_path("")
+        if os.path.exists(bulk_path): 
+            shutil.rmtree(bulk_path)
 
         state = defaultdict(lambda:None)
-        for subgraph in Util.kgx_objects ():
-            """ TODO: do this incrementally now that we have a schema. """
+#        for subgraph in Util.kgx_objects ():
+        for subgraph in Util.merged_objects ():
             log.info (f"processing {subgraph}")
             graph = Util.read_object (subgraph)
 
@@ -295,7 +412,9 @@ class BulkLoad:
             self.write_bulk (Util.bulk_path("edges"), predicates, predicates_schema)
             
     def cleanup (self, v):
-        """ Filter problematic text. """
+        """ Filter problematic text. 
+        :param v: A value to filter and clean.
+        """
         if isinstance(v, list):
             v = [ self.cleanup(val) for val in v ]
         elif isinstance (v, str):
@@ -306,7 +425,12 @@ class BulkLoad:
         return v
     
     def write_bulk (self, bulk_path, obj_map, schema, state={}, f=None):
-        """ Write a bulk load group of objects. """
+        """ Write a bulk load group of objects.
+        :param bulk_path: Path to the bulk loader object to write.
+        :param obj_map: A map of biolink type to list of objects.
+        :param schema: The schema (nodes or predicates) containing identifiers.
+        :param state: Track state of already written objects to avoid duplicates.
+        """
         os.makedirs (bulk_path, exist_ok=True)
         for key, objects in obj_map.items ():
             out_file = f"{bulk_path}/{key}.csv"
@@ -337,12 +461,13 @@ class BulkLoad:
                     stream.write ("\n")
                 
 if __name__ == "__main__":
-    """ The Roger CLI. """
+    """ Roger CLI. """
     parser = argparse.ArgumentParser(description='Roger')
     parser.add_argument('-b', '--create-bulk', help="Create bulk load", action='store_true')
     parser.add_argument('-s', '--create-schema', help="Infer schema", action='store_true')
     parser.add_argument('-g', '--get-kgx', help="Get KGX objects", action='store_true')
     parser.add_argument('-l', '--load-kgx', help="Load via KGX", action='store_true')
+    parser.add_argument('-m', '--merge-kgx', help="Merge KGX nodes", action='store_true')
     parser.add_argument('-v', '--dataset-version', help="Dataset version.", default="v0.1")
     args = parser.parse_args ()
 
@@ -353,6 +478,8 @@ if __name__ == "__main__":
         kgx.get (dataset_version=args.dataset_version)
     if args.load_kgx:
         kgx.load ()
+    if args.merge_kgx:
+        kgx.merge ()
     if args.create_schema:
         kgx.create_schema ()
     if args.create_bulk:

@@ -43,10 +43,15 @@ client () {
     redis-cli -h 127.0.0.1 -p 6380 -a $REDIS_PASSWORD
 }
 #----------------------------
+
+
+
+
 export ROGER_HOME=~/dev/roger
 export DATA_HOME=$ROGER_HOME/roger/data
 export PYTHONPATH=~/dev/kgx:$ROGER_HOME
 export DB_NAME=test
+
 roger () {
     python $ROGER_HOME/roger/core.py $*
 }
@@ -55,15 +60,26 @@ kgx () {
     get () {
 	time roger --get-kgx $*
     }
+    merge () {
+	time roger --merge-kgx $*
+    }
     schema () {
 	time roger --create-schema
     }
     clean () {
 	schema () {
-	    rm -rf $DATA_HOME/kgx
+	    rm -rf $DATA_HOME/schema
 	}
 	cache () {
-	    rm -rf $DATA_HOME/schema
+	    rm -rf $DATA_HOME/kgx
+	}
+	merge () {
+	    rm -rf $DATA_HOME/merge
+	}
+	all () {
+	    schema
+	    cache
+	    merge
 	}
 	$*
     }
@@ -115,10 +131,13 @@ validate () {
 
 }
 
-full () {
+all () {
+    kgx clean all
     kgx clean schema
+    kgx clean merge
     bulk clean
     kgx get
+    kgx merge
     kgx schema
     bulk create
     bulk load
@@ -128,3 +147,5 @@ full () {
 $*
 
 exit 0
+
+
