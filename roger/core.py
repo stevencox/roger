@@ -204,8 +204,7 @@ class KGXModel:
                 
                     edges = len(subgraph['edges'])
                     nodes = len(subgraph['nodes'])
-                    #log.debug (f"Wrote {subgraph_path}: edges:{edges}, nodes: {nodes} time:{total_time}")
-                    log.debug ("Wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format (
+                    log.debug ("wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format (
                         subgraph_path, edges, nodes, total_time))
 
     def create_schema (self):
@@ -260,9 +259,6 @@ class KGXModel:
         """ Merge nodes. Would be good to have something less computationally intensive. """
         for path in Util.kgx_objects ():
             new_path = path.replace ('/kgx/', '/merge/')
-            if os.path.exists (new_path):
-                log.info (f"using cached merge: {new_path}")
-                continue
             log.info (f"merging {path}")
             graph = Util.read_object (path)
             graph_nodes = graph.get ('nodes', [])

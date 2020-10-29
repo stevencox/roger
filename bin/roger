@@ -133,8 +133,6 @@ validate () {
 
 all () {
     kgx clean all
-    kgx clean schema
-    kgx clean merge
     bulk clean
     kgx get
     kgx merge
