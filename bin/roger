@@ -47,7 +47,9 @@ client () {
 
 
 
-export ROGER_HOME=~/dev/roger
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export ROGER_HOME=$( dirname $DIR )
+#export ROGER_HOME=~/dev/roger
 export DATA_HOME=$ROGER_HOME/roger/data
 export PYTHONPATH=~/dev/kgx:$ROGER_HOME
 export DB_NAME=test
@@ -120,15 +122,20 @@ TOPMED.VAR:phv00000529.v1.p10
 TOPMED.VAR:phv00000530.v1.p10
 TOPMED.VAR:phv00000531.v1.p10"
 validate () {
-    time redis-cli GRAPH.QUERY $DB_NAME "MATCH (a) RETURN count(a)"
-    time redis-cli GRAPH.QUERY $DB_NAME "MATCH (a)-[e]-(b) RETURN count(e)"
+    query "MATCH (a) RETURN count(a)"
+    query "MATCH (a)-[e]-(b) RETURN count(e)"
     for v in $vars; do
 	query="MATCH (a { id : '$v' })--(b) RETURN a.category, b.id"
 	echo $query
-	time redis-cli GRAPH.QUERY $DB_NAME "$query"
+	query "$query"
     done
-    time redis-cli GRAPH.QUERY $DB_NAME "MATCH (a)-[e]-(b) RETURN count(a), count(b)"
-
+    query "MATCH (a)-[e]-(b) RETURN count(a), count(b)"
+    query "MATCH (a:gene)-[e]-(b) WHERE 'chemical_substance' IN b.category RETURN count(distinct(a)), count(distinct(b))"
+}
+query () {
+    query="$1"
+    echo "$query"
+    time redis-cli GRAPH.QUERY $DB_NAME "$query"
 }
 
 all () {
