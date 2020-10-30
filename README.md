@@ -2,22 +2,23 @@
 
 Roger is an automated graph data curation pipeline.
 
-It transforms Knowledge Graph eXchange (KGX) files into a graph database:
-
-Phases include:
+It transforms Knowledge Graph eXchange (KGX) files into a graph database in phases:
 * **get**: Fetch KGX files from a repository.
 * **merge**: Merge duplicate nodes accross multiple KGX files.
 * **schema**: Infer the schema properties of nodes and edges.
-* **bulk format**: Format for bulk load to Redisgraph.
+* **bulk create**: Format for bulk load to Redisgraph.
 * **bulk load**: Load into Redisgraph
 * **validate**: Execute test queries to validate the bulk load.
 
 ## Installation
-Python 3.6+
+
+Requires Python 3.7+, Docker, and Make.
+
 ```
 $ pip install requirements.txt
 $ bin/roger all
 ```
+
 Roger can also be run via a Makefile:
 ```
 cd bin
@@ -42,15 +43,15 @@ To build a bulk load, we
 These constraints are managed in the steps below.
 
 ### Get
-Fetches KGX files. A version can be specified to select a set of files to download.
+Fetches KGX files according to a data version selecting the set of files to use.
 ### Merge
-Merges nodes duplicated across files. It aggregates properties from all nodes
+Merges nodes duplicated across files aggregating properties from all nodes
 ### Schema
 Identify and record the schema (properties) of every edge and node type.
 ### Bulk Create
 Create bulk load CSV files conforming to the Redisgraph Bulk Loader's requirements.
 ### Bulk Load
-Use the bulk loader to load a Redisgraph instance. This logs statistics on each type of loaded object.
+Use the bulk loader to load Redisgraph logging statistics on each type of loaded object.
 ### Validate
 Runs a configurable list of queries with timing information to quality check the generated graph database.
 
