@@ -1,6 +1,6 @@
 # roger
 
-Roger is an automated curation pipeline.
+Roger is an automated graph data curation pipeline.
 
 It transforms Knowledge Graph eXchange (KGX) files into a graph database:
 
