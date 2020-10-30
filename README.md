@@ -36,10 +36,10 @@ Roger can load Redisgraph
 
 To build a bulk load, we
 * Must ensure no duplicate nodes exist
-* Preserve all node properties present in dupliates in input files
-* Ensure all nodes have exactly the same properties
-* Produce an header (schema) for all nodes and edges
-Some of the steps below are necessary to fit the above constaints.
+* Preserve all properties present across duplicate nodes
+* Ensure all nodes of the same type have exactly the same properties
+* Generate a comprehensive header (schema) for all nodes and edges
+These constraints are managed in the steps below.
 
 ### Get
 Fetches KGX files. A version can be specified to select a set of files to download.
@@ -69,7 +69,7 @@ This lets you have a look around inside the container. To start Redis with the g
 # redis-server --loadmodule /usr/lib/redis/modules/redisgraph.so
 ```
 
-A full run of Roger will look something like this. Times below are on a Macbook Air.
+A clean Roger build looks like this. Times below are on a Macbook Air.
 
 ```
 (rg) scox@morgancreek ~/dev/roger/bin$ make clean install validate
