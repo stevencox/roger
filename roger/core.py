@@ -173,6 +173,31 @@ class Util:
         :param key: The key of a configuration value to prepend to the object. """
         return f"{config[key]}/{path}"
 
+    @staticmethod
+    def get_relative_path (path):
+        return os.path.join (os.path.dirname (__file__), path)
+
+    @staticmethod
+    def read_relative_object (path):
+        return Util.read_object (Util.get_relative_path(path))
+
+    @staticmethod
+    def trunc(text, limit):
+        return ('..' + text[-limit-2:]) if len(text) > limit else text
+
+    @staticmethod
+    def is_up_to_date (source, targets):
+        if len(targets) == 0:
+            log.info (f"no targets found")
+            return False
+        source = [ os.stat (f).st_mtime for f in source if os.path.exists (f) ]
+        if len(source) == 0:
+            log.debug ("no source found. up to date")
+            return True
+        source_time = max(source)
+        target_time = min([ os.stat (f).st_mtime for f in targets if os.path.exists(f) ])
+        return source_time < target_time
+        
 class KGXModel:
     """ Abstractions for transforming Knowledge Graph Exchange formatted data. """
     def __init__(self, biolink):
@@ -183,7 +208,7 @@ class KGXModel:
         containing both nodes and edges. 
         :param dataset_version: Data version to operate on.
         """
-        metadata = Util.read_object ("metadata.yaml", key="data_root")
+        metadata = Util.read_relative_object ("metadata.yaml")
         for item in metadata['versions']:
             if item['version'] == dataset_version:
                 for edge_url in item['edgeFiles']:                    
@@ -193,7 +218,7 @@ class KGXModel:
                     subgraph_basename = os.path.basename (edge_url.replace ("-edge", ""))
                     subgraph_path = Util.kgx_path (subgraph_basename)
                     if os.path.exists (subgraph_path):
-                        log.info (f"using cached graph: {subgraph_path}")
+                        log.info (f"cached kgx: {subgraph_path}")
                         continue
                     subgraph = {
                         "edges" : Util.read_object (edge_url),
@@ -205,7 +230,7 @@ class KGXModel:
                     edges = len(subgraph['edges'])
                     nodes = len(subgraph['nodes'])
                     log.debug ("wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format (
-                        subgraph_path, edges, nodes, total_time))
+                        Util.trunc(subgraph_path, 45), edges, nodes, total_time))
 
     def create_schema (self):
         """
@@ -213,8 +238,12 @@ class KGXModel:
         to write tabular data. Need to know all possible columns in advance and correct missing
         fields.
         """
+        if self.schema_up_to_date():
+            log.info (f"schema is up to date.")
+            return
+        
         predicate_schemas = defaultdict(lambda:None)
-        category_schemas = defaultdict(lambda:None)
+        category_schemas = defaultdict(lambda:None)        
         for subgraph in Util.kgx_objects ():
             """ Read a kgx data file. """
             log.debug (f"analyzing schema of {subgraph}.")
@@ -246,6 +275,40 @@ class KGXModel:
         self.write_schema (predicate_schemas, SchemaType.PREDICATE)
         self.write_schema (category_schemas, SchemaType.CATEGORY)
 
+    def schema_up_to_date (self):
+        return Util.is_up_to_date (
+            source=Util.kgx_objects (),
+            targets=[
+                Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json"),
+                Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json")
+            ])
+    """
+        source = Util.kgx_objects ()
+        if len(source) == 0:
+            log.info (f"no source files found.")
+            return False
+        else:
+            source_time = max([
+                os.stat (f).st_mtime for f in source
+                if os.path.exists (f)
+            ])
+            schemas = [ os.stat (f).st_mtime for f in [
+                Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json"),
+                Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json")
+            ] if os.path.exists (f) ]
+            target_time = min(schemas) if len(schemas) > 0 else 0
+            return source_time < target_time
+    """
+                
+    def write_schema (self, schema, schema_type: SchemaType):
+        """ Output the schema file. 
+        :param schema: Schema to get keys from.
+        :param schema_type: Type of schema to write. """
+        file_name = Util.schema_path (f"{schema_type.value}-schema.json")
+        log.info (f"writing schema: {file_name}")
+        dictionary = { k : self.format_keys(v.keys(), schema_type)  for k, v in schema.items () }
+        Util.write_object (dictionary, file_name)
+        
     def merge_nodes (self, L, R):
         for k in L.keys ():
             R_v = R.get (k, None)
@@ -259,6 +322,14 @@ class KGXModel:
         """ Merge nodes. Would be good to have something less computationally intensive. """
         for path in Util.kgx_objects ():
             new_path = path.replace ('/kgx/', '/merge/')
+
+            source_stats = os.stat (path)
+            if os.path.exists (new_path):
+                dest_stats = os.stat (new_path)
+                if dest_stats.st_mtime > source_stats.st_mtime:
+                    log.info (f"merge {new_path} is up to date.")
+                    continue
+
             log.info (f"merging {path}")
             graph = Util.read_object (path)
             graph_nodes = graph.get ('nodes', [])
@@ -290,7 +361,7 @@ class KGXModel:
                 Util.write_object (other_graph, path_2.replace ('kgx', 'merge'))
                 write_time = Util.current_time_in_millis () - start
                 log.debug ("merged {:>45} load:{:>5} scope:{:>7} merge:{:>3}".format(
-                    path_2, load_time, scope_time, merge_time))
+                    Util.trunc(path_2, 45), load_time, scope_time, merge_time))
                 total_merge_time += load_time + scope_time + merge_time + write_time
                 
             start = Util.current_time_in_millis ()
@@ -321,15 +392,6 @@ class KGXModel:
                 k_list.remove ('simple_smiles')
             k_list.insert (0, 'id')
         return k_list
-
-    def write_schema (self, schema, schema_type: SchemaType):
-        """ Output the schema file. 
-        :param schema: Schema to get keys from.
-        :param schema_type: Type of schema to write. """
-        file_name = Util.schema_path (f"{schema_type.value}-schema.json")
-        log.info (f"writing schema: {file_name}")
-        dictionary = { k : self.format_keys(v.keys(), schema_type)  for k, v in schema.items () }
-        Util.write_object (dictionary, file_name)
 
     def load (self):
         """ Use KGX to load a data set into Redisgraph """
@@ -376,8 +438,22 @@ class BulkLoad:
     """ Tools for creating a Redisgraph bulk load dataset. """
     def __init__(self, biolink):
         self.biolink = biolink
-        
+
+    def tables_up_to_date (self):
+        return Util.is_up_to_date (
+            source=[
+                Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json"),
+                Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json")
+            ] + [ Util.merged_objects () ],
+            targets=glob.glob (Util.bulk_path ("nodes/**.csv")) + \
+            glob.glob (Util.bulk_path ("edges/**.csv")))
+
     def create (self):
+        """ Check source times. """
+        if self.tables_up_to_date ():
+            log.info ("up to date.")
+            return
+        
         """ Format the data for bulk load. """
         predicates_schema = Util.read_schema (SchemaType.PREDICATE)
         categories_schema = Util.read_schema (SchemaType.CATEGORY)
@@ -386,7 +462,6 @@ class BulkLoad:
             shutil.rmtree(bulk_path)
 
         state = defaultdict(lambda:None)
-#        for subgraph in Util.kgx_objects ():
         for subgraph in Util.merged_objects ():
             log.info (f"processing {subgraph}")
             graph = Util.read_object (subgraph)
@@ -465,11 +540,15 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--load-kgx', help="Load via KGX", action='store_true')
     parser.add_argument('-m', '--merge-kgx', help="Merge KGX nodes", action='store_true')
     parser.add_argument('-v', '--dataset-version', help="Dataset version.", default="v0.1")
+    parser.add_argument('-d', '--data-root', help="Root of data hierarchy", default=None)
     args = parser.parse_args ()
 
     biolink = BiolinkModel ()
     kgx = KGXModel (biolink)
     bulk = BulkLoad (biolink)
+    if args.data_root is not None:
+        data_root = get_config()['data_root'] = args.data_root
+        log.info (f"data root:{data_root}")
     if args.get_kgx:
         kgx.get (dataset_version=args.dataset_version)
     if args.load_kgx:
