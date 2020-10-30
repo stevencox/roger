@@ -2,14 +2,35 @@
 
 Roger is an automated curation pipeline.
 
-It implements operators on Knowledge Graph eXchange (KGX) files including:
+It is a process for transforming Knowledge Graph eXchange (KGX) files into a graph database:
 * **get**: Fetch KGX files from a repository.
 * **merge**: Merge duplicate nodes accross multiple KGX files.
 * **schema**: Infer the schema properties of nodes and edges.
 * **bulk format**: Format for bulk load to Redisgraph.
 * **bulk load**: Load into Redisgraph
 
-This is a full run of the above operators. For more details, see bin/roger.
+## Installation
+Python 3.6+
+```
+$ pip install requirements.txt
+$ bin/roger all
+```
+Roger can also be run via a Makefile:
+```
+cd bin
+make clean install
+```
+
+## Design
+
+Roger is file based. Each phase, in gernal, reads and writes a set of files.
+These are managed beneath a single, configurable, root data directory.
+Configuration is at roger/config.yaml.
+
+
+## Execution
+
+A full run of Roger will look something like this:
 
 ```
 $ ../bin/roger all
