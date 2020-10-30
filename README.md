@@ -8,6 +8,7 @@ It is a process for transforming Knowledge Graph eXchange (KGX) files into a gra
 * **schema**: Infer the schema properties of nodes and edges.
 * **bulk format**: Format for bulk load to Redisgraph.
 * **bulk load**: Load into Redisgraph
+* **validate**: Execute test queries to validate the bulk load.
 
 ## Installation
 Python 3.6+
@@ -27,6 +28,29 @@ Roger is file based. Each phase, in gernal, reads and writes a set of files.
 These are managed beneath a single, configurable, root data directory.
 Configuration is at roger/config.yaml.
 
+Roger can load Redisgraph
+* By running the RedisgraphTransformer (currently on a fork of KGX)
+* By bulk loading Redisgraph
+
+To build a bulk load, we
+* Must ensure no duplicate nodes exist
+* Preserve all node properties present in dupliates in input files
+* Ensure all nodes have exactly the same properties
+* Produce an header (schema) for all nodes and edges
+Some of the steps below are necessary to fit the above constaints.
+
+### Get
+Fetches KGX files. A version can be specified to select a set of files to download.
+### Merge
+Merges nodes duplicated across files. It aggregates properties from all nodes
+### Schema
+Identify and record the schema (properties) of every edge and node type.
+### Bulk Create
+Create bulk load CSV files conforming to the Redisgraph Bulk Loader's requirements.
+### Bulk Load
+Use the bulk loader to load a Redisgraph instance. This logs statistics on each type of loaded object.
+### Validate
+Runs a configurable list of queries with timing information to quality check the generated graph database.
 
 ## Execution
 
