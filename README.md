@@ -2,7 +2,9 @@
 
 Roger is an automated curation pipeline.
 
-It is a process for transforming Knowledge Graph eXchange (KGX) files into a graph database:
+It transforms Knowledge Graph eXchange (KGX) files into a graph database:
+
+Phases include:
 * **get**: Fetch KGX files from a repository.
 * **merge**: Merge duplicate nodes accross multiple KGX files.
 * **schema**: Infer the schema properties of nodes and edges.
@@ -24,7 +26,7 @@ make clean install
 
 ## Design
 
-Roger is file based. Each phase, in gernal, reads and writes a set of files.
+Each phase, in general, reads and writes a set of files.
 These are managed beneath a single, configurable, root data directory.
 Configuration is at roger/config.yaml.
 
