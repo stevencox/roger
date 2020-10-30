@@ -188,7 +188,7 @@ class Util:
     @staticmethod
     def is_up_to_date (source, targets):
         if len(targets) == 0:
-            log.info (f"no targets found")
+            log.debug (f"no targets found")
             return False
         source = [ os.stat (f).st_mtime for f in source if os.path.exists (f) ]
         if len(source) == 0:
@@ -282,23 +282,6 @@ class KGXModel:
                 Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json"),
                 Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json")
             ])
-    """
-        source = Util.kgx_objects ()
-        if len(source) == 0:
-            log.info (f"no source files found.")
-            return False
-        else:
-            source_time = max([
-                os.stat (f).st_mtime for f in source
-                if os.path.exists (f)
-            ])
-            schemas = [ os.stat (f).st_mtime for f in [
-                Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json"),
-                Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json")
-            ] if os.path.exists (f) ]
-            target_time = min(schemas) if len(schemas) > 0 else 0
-            return source_time < target_time
-    """
                 
     def write_schema (self, schema, schema_type: SchemaType):
         """ Output the schema file. 
