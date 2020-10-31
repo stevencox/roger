@@ -46,7 +46,11 @@ with DAG(
         return_code = os.system("make install")
         assert return_code == 0
 
-    start_task = PythonOperator(
+    intro = BashOperator(
+        task_id='intro_loop',
+        bash_command='echo running tranql translator')
+    )
+    install = PythonOperator(
         task_id="roger_install_task",
         python_callable=roger,
         executor_config={
@@ -54,8 +58,13 @@ with DAG(
                 "annotations": {
                     "test" : "annotation"
                 }}})
-    
-    start_task >> second_task >> third_task
+    finish = BashOperator(
+        task_id='finish_task',
+        bash_command='echo finish')
+    )
+
+    intro >> install >> finish
+
     
     """
     # You can mount volume or secret to the worker pod
