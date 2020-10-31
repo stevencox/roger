@@ -28,7 +28,7 @@ from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
-from roger.core import KGXModel, BiolinkModel, BulkLoad
+from roger.core import RogerUtil #KGXModel, BiolinkModel, BulkLoad
 
 default_args = {
     'owner': 'RENCI',
@@ -40,34 +40,6 @@ with DAG(
     default_args=default_args,
     schedule_interval=None
 ) as dag:
-
-    def get ():
-        import logging
-        logging.info("beginning kgx.get()")               
-        biolink = BiolinkModel ()
-        kgx = KGXModel (biolink)
-        kgx.get ()
-
-    def schema ():
-        import logging
-        logging.info("beginning kgx.create_schema()")               
-        biolink = BiolinkModel ()
-        kgx = KGXModel (biolink)
-        kgx.create_schema ()
-
-    def merge ():
-        import logging
-        logging.info("beginning kgx.merge()")
-        biolink = BiolinkModel ()
-        kgx = KGXModel (biolink)
-        kgx.merge ()
-
-    def bulk_create ():
-        import logging
-        logging.info("beginning kgx.merge()")
-        biolink = BiolinkModel ()
-        bulk = BulkLoad (biolink)
-        bulk.create ()
         
     intro = BashOperator(
         task_id='Intro',
@@ -75,19 +47,23 @@ with DAG(
     )
     get_t = PythonOperator(
         task_id="GetSource",
-        python_callable=get
+        op_kwargs={ 'to_string' : True },
+        python_callable=RogerUtil.get_kgx
     )
     schema_t = PythonOperator(
         task_id="InferSchema",
-        python_callable=schema
+        op_kwargs={ 'to_string' : True },
+        python_callable=RogerUtil.create_schema
     )
     merge_t = PythonOperator(
         task_id="MergeNodes",
-        python_callable=merge
+        op_kwargs={ 'to_string' : True },
+        python_callable=RogerUtil.merge_nodes
     )
     bulk_create_t = PythonOperator(
         task_id="CreateBulkLoad",
-        python_callable=bulk_create
+        op_kwargs={ 'to_string' : True },
+        python_callable=RogerUtil.create_bulk_load
     )
     finish = BashOperator(
         task_id='Finish',

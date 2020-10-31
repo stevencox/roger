@@ -8,11 +8,12 @@ import time
 import yaml
 import sys
 import traceback
+from biolink import model
 from collections import defaultdict
 from enum import Enum
+from io import StringIO
 from kgx.cli import redisgraph_upload
 from roger.config import get_logger, get_config
-from biolink import model
 
 log = get_logger ()
 config = get_config ()
@@ -512,7 +513,75 @@ class BulkLoad:
                     s = "|".join (clean)
                     stream.write (s)
                     stream.write ("\n")
-                
+
+class Roger:
+    """ Consolidate Roger functionality for a cleaner interface. """
+
+    def __init__(self, to_string=False):
+        """ Initialize.
+        :param to_string: Log messages to a string, available as self.log_stream.getvalue() 
+        after execution completes.
+        """
+        import logging
+        if to_string:
+            """ Add a stream handler to enable to_string. """
+            self.log_stream = StringIO()
+            self.string_handler = logging.StreamHandler (self.log_stream)
+            log.addHandler (self.string_handler)
+        self.biolink = BiolinkModel ()
+        self.kgx = KGXModel (self.biolink)
+        self.bulk = BulkLoad (self.biolink)
+
+    def __enter__(self):
+        """ Implement Python's Context Manager interface. """
+        return self
+    
+    def __exit__(self, exception_type, exception_value, traceback):
+        """ Implement Python's Context Manager interface. We use this finalizer
+        to detach the stream handler appended in the constructor.
+        :param exception_type: Type of exception, if one occurred.
+        :param exception_value: The exception, if one occurred.
+        :param traceback: The stack trace explaining the exception. 
+        """
+        if exception_type or exception_value or traceback:
+            log.error (exception_type, exception_value, traceback)
+        log.removeHandler (self.string_handler)
+        
+class RogerUtil:
+    """ An interface abstracting Roger's inner workings to make it easier to
+    incorporate into external tools like workflow engines. """
+    @staticmethod
+    def get_kgx (to_string=False):
+        output = None
+        with Roger (to_string) as roger:
+            roger.kgx.get ()
+            output = roger.log_stream.getvalue () if to_string else None
+        return output
+    
+    @staticmethod
+    def create_schema (to_string=False):
+        output = None
+        with Roger (to_string) as roger:
+            roger.kgx.create_schema ()
+            output = roger.log_stream.getvalue () if to_string else None
+        return output
+    
+    @staticmethod
+    def merge_nodes (to_string=False):
+        output = None
+        with Roger (to_string) as roger:
+            roger.kgx.merge ()
+            output = roger.log_stream.getvalue () if to_string else None
+        return output
+    
+    @staticmethod
+    def create_bulk_load (to_string=False):
+        output = None
+        with Roger (to_string) as roger:
+            roger.bulk.create ()
+            output = roger.log_stream.getvalue () if to_string else None
+        return output
+
 if __name__ == "__main__":
     """ Roger CLI. """
     parser = argparse.ArgumentParser(description='Roger')
