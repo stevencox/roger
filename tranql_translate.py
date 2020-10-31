@@ -41,9 +41,6 @@ with DAG(
 ) as dag:
 
     def roger ():
-        """
-        Install.
-        """
         completed_process = subprocess.run(
             "cd bin && make install", shell=True, check=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
