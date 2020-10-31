@@ -41,38 +41,64 @@ with DAG(
     schedule_interval=None
 ) as dag:
 
-    def roger ():
+    def get ():
         import logging
-        logging.info(kwargs)
-        
+        logging.info("beginning kgx.get()")               
         biolink = BiolinkModel ()
         kgx = KGXModel (biolink)
-        bulk = BulkLoad (biolink)
         kgx.get ()
-        """
-        completed_process = subprocess.run(
-            "cd bin && make install", shell=True, check=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print (completed_process.stdout)
-        if completed_process.returncode > 0:
-            print (completed_process.stderr)
-        """
 
+    def schema ():
+        import logging
+        logging.info("beginning kgx.create_schema()")               
+        biolink = BiolinkModel ()
+        kgx = KGXModel (biolink)
+        kgx.create_schema ()
+
+    def merge ():
+        import logging
+        logging.info("beginning kgx.merge()")
+        biolink = BiolinkModel ()
+        kgx = KGXModel (biolink)
+        kgx.merge ()
+
+    def bulk_create ():
+        import logging
+        logging.info("beginning kgx.merge()")
+        biolink = BiolinkModel ()
+        bulk = BulkLoad (biolink)
+        bulk.create ()
+        
     intro = BashOperator(
-        task_id='intro_task',
+        task_id='Intro',
         bash_command='echo running tranql translator'
     )
-    install = PythonOperator(
-        task_id="roger_install_task",
-        python_callable=roger,
-        executor_config={
-            "KubernetesExecutor": {
-                "annotations": {
-                    "test" : "annotation"
-                }}})
+    get_t = PythonOperator(
+        task_id="GetSource",
+        python_callable=get
+    )
+    schema_t = PythonOperator(
+        task_id="InferSchema",
+        python_callable=schema
+    )
+    merge_t = PythonOperator(
+        task_id="MergeNodes",
+        python_callable=merge
+    )
+    bulk_create_t = PythonOperator(
+        task_id="CreateBulkLoad",
+        python_callable=bulk_create
+    )
     finish = BashOperator(
-        task_id='finish_task',
+        task_id='Finish',
         bash_command='echo finish'
     )
+    intro >> get_t >> [ schema_t, merge_t ] >> bulk_create_t >> finish
 
-    intro >> install >> finish
+    """,
+    executor_config={
+    "KubernetesExecutor": {
+    "annotations": {
+    "test" : "annotation"
+    }}}
+    """

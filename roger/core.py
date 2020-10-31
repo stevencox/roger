@@ -426,7 +426,7 @@ class BulkLoad:
             source=[
                 Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json"),
                 Util.schema_path (f"{SchemaType.PREDICATE.value}-schema.json")
-            ] + [ Util.merged_objects () ],
+            ] + Util.merged_objects (),
             targets=glob.glob (Util.bulk_path ("nodes/**.csv")) + \
             glob.glob (Util.bulk_path ("edges/**.csv")))
 
