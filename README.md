@@ -504,3 +504,10 @@ sys	0m0.004s
         6.60 real         0.04 user         0.07 sys
 (rg) scox@morgancreek ~/dev/roger/bin$ 
 ```
+
+## Airflow
+
+This is Roger in Airflow. This is a local run. Next steps: Kubernetes.
+
+![image](https://user-images.githubusercontent.com/306971/97787836-e9fc6080-1b8a-11eb-9d75-141498ebe447.png)
+
