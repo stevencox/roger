@@ -48,7 +48,7 @@ with DAG(
 
     intro = BashOperator(
         task_id='intro_loop',
-        bash_command='echo running tranql translator')
+        bash_command='echo running tranql translator'
     )
     install = PythonOperator(
         task_id="roger_install_task",
@@ -60,7 +60,7 @@ with DAG(
                 }}})
     finish = BashOperator(
         task_id='finish_task',
-        bash_command='echo finish')
+        bash_command='echo finish'
     )
 
     intro >> install >> finish
