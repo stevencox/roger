@@ -28,6 +28,7 @@ from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
+from roger.core import KGXModel, BiolinkModel, BulkLoad
 
 default_args = {
     'owner': 'RENCI',
@@ -41,13 +42,21 @@ with DAG(
 ) as dag:
 
     def roger ():
+        import logging
+        logging.info(kwargs)
+        
+        biolink = BiolinkModel ()
+        kgx = KGXModel (biolink)
+        bulk = BulkLoad (biolink)
+        kgx.get ()
+        """
         completed_process = subprocess.run(
             "cd bin && make install", shell=True, check=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print (completed_process.stdout)
         if completed_process.returncode > 0:
             print (completed_process.stderr)
-
+        """
 
     intro = BashOperator(
         task_id='intro_task',
