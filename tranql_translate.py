@@ -22,6 +22,7 @@ This is an example dag for using a Kubernetes Executor Configuration.
 from __future__ import print_function
 
 import os
+import subprocess
 from airflow.operators.bash_operator import BashOperator
 from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
@@ -43,11 +44,15 @@ with DAG(
         """
         Install.
         """
-        return_code = os.system("make install")
-        assert return_code == 0
+        completed_process =subprocess.run(
+            "cd bin && make install", shell=True, check=True, capture_output=True)
+        print (completed_process.stdout)
+        if completed_process.returncode > 0:
+            print (completed_process.stderr)
+
 
     intro = BashOperator(
-        task_id='intro_loop',
+        task_id='intro_task',
         bash_command='echo running tranql translator'
     )
     install = PythonOperator(
