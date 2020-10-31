@@ -1,7 +1,7 @@
 #set -x
 set -e
 
-namespace=scox
+namespace=${NAMESPACE:-scox}
 release=redisgraph
 image_repository=redislabs/redisgraph
 image_tag=edge
