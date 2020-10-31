@@ -511,3 +511,22 @@ This is Roger in Airflow. This is a local run. Next steps: Kubernetes.
 
 ![image](https://user-images.githubusercontent.com/306971/97787836-e9fc6080-1b8a-11eb-9d75-141498ebe447.png)
 
+### Running in Airflow
+In one window:
+```
+airflow scheduler
+```
+In another:
+```
+airflow webserver -p 8080
+```
+Open localhost:8080 in a browser.
+
+Then run:
+```
+python tranql_translator.py
+```
+The Airflow interface shows the workflow:
+![image](https://user-images.githubusercontent.com/306971/97787955-b968f680-1b8b-11eb-86cc-4d93842eafd3.png)
+
+Use the Trigger icon to run the workflow immediatley.
