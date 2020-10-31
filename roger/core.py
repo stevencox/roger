@@ -187,16 +187,15 @@ class Util:
 
     @staticmethod
     def is_up_to_date (source, targets):
-        if len(targets) == 0:
+        target_time_list = [ os.stat (f).st_mtime for f in targets if os.path.exists(f) ]
+        if len(target_time_list) == 0:
             log.debug (f"no targets found")
             return False
         source = [ os.stat (f).st_mtime for f in source if os.path.exists (f) ]
         if len(source) == 0:
             log.debug ("no source found. up to date")
             return True
-        source_time = max(source)
-        target_time = min([ os.stat (f).st_mtime for f in targets if os.path.exists(f) ])
-        return source_time < target_time
+        return max(source) < min(target_time_list)
         
 class KGXModel:
     """ Abstractions for transforming Knowledge Graph Exchange formatted data. """
