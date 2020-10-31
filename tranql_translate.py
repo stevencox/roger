@@ -44,8 +44,9 @@ with DAG(
         """
         Install.
         """
-        completed_process =subprocess.run(
-            "cd bin && make install", shell=True, check=True, capture_output=True)
+        completed_process = subprocess.run(
+            "cd bin && make install", shell=True, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print (completed_process.stdout)
         if completed_process.returncode > 0:
             print (completed_process.stderr)
