@@ -455,6 +455,10 @@ This is Roger in Airflow. This is a local run. Next steps: Kubernetes.
 
 ![image](https://user-images.githubusercontent.com/306971/97792715-18dcfb80-1bb8-11eb-98d7-ea43992134de.png)
 
+Detailed feedback for each task is available including output logs
+
+![image](https://user-images.githubusercontent.com/306971/97792727-5fcaf100-1bb8-11eb-85b5-03cad151e0a0.png)
+
 ### Running in Airflow
 In one window:
 ```
