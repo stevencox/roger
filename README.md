@@ -27,16 +27,21 @@ make clean install validate
 
 ## Design
 
-Each phase, in general, reads and writes a set of files.
-These are managed beneath a single, configurable, root data directory.
+Roger's is designed to transform data through well defined and transparent phases.
+
+In general, each phase
+* Reads and writes a set of files.
+* Manages data in a single, configurable, root directory.
+
 Configuration is at roger/config.yaml.
 
 Roger can load Redisgraph
 * By running the RedisgraphTransformer (currently on a fork of KGX)
+  * Currently, this is very slow.
 * By bulk loading Redisgraph
 
 To build a bulk load, we
-* Must ensure no duplicate nodes exist
+* Ensure no duplicate nodes exist
 * Preserve all properties present across duplicate nodes
 * Ensure all nodes of the same type have exactly the same properties
 * Generate a comprehensive header (schema) for all nodes and edges
@@ -72,6 +77,11 @@ This lets you have a look around inside the container. To start Redis with the g
 
 A clean Roger build looks like this. Times below are on a Macbook Air.
 
+This can be run as
+```
+$ make clean install validate
+```
+Or via the roger CLI
 ```
 $ ../bin/roger all
 [roger][core.py][                 get] DEBUG: wrote                data/kgx/chembio_kgx-v0.1.json: edges:  21637 nodes:    8725 time:   13870
