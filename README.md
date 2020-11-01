@@ -22,7 +22,7 @@ $ bin/roger all
 Roger can also be run via a Makefile:
 ```
 cd bin
-make clean install
+make clean install validate
 ```
 
 ## Design
