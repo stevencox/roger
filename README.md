@@ -77,6 +77,11 @@ This lets you have a look around inside the container. To start Redis with the g
 
 A clean Roger build looks like this. Times below are on a Macbook Air.
 
+This can be run as
+```
+$ make clean install validate
+```
+Or via the roger CLI
 ```
 $ ../bin/roger all
 [roger][core.py][                 get] DEBUG: wrote                data/kgx/chembio_kgx-v0.1.json: edges:  21637 nodes:    8725 time:   13870
