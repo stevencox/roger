@@ -2,6 +2,7 @@ import argparse
 import glob
 import json
 import os
+import redis
 import requests
 import shutil
 import time
@@ -13,7 +14,10 @@ from collections import defaultdict
 from enum import Enum
 from io import StringIO
 from kgx.cli import redisgraph_upload
-from roger.config import get_logger, get_config
+from roger.roger_util import get_logger, get_config
+from redisgraph_bulk_loader.bulk_insert import bulk_insert
+from roger.roger_db import RedisGraph
+from string import Template
 
 log = get_logger ()
 config = get_config ()
@@ -211,7 +215,7 @@ class KGXModel:
         metadata = Util.read_relative_object ("metadata.yaml")
         for item in metadata['versions']:
             if item['version'] == dataset_version:
-                for edge_url in item['edgeFiles']:                    
+                for edge_url in item['edgeFiles']:
                     start = Util.current_time_in_millis ()
                     edge_url = Util.get_uri (edge_url, "base_data_uri")
                     node_url = edge_url.replace ("-edge-", "-node-")
@@ -514,6 +518,54 @@ class BulkLoad:
                     stream.write (s)
                     stream.write ("\n")
 
+    def insert (self):
+        redisgraph = config.get('redisgraph', {})
+        bulk_loader = config.get('bulk_loader', {})
+        nodes = sorted(glob.glob (Util.bulk_path ("nodes/**.csv")))
+        edges = sorted(glob.glob (Util.bulk_path ("edges/**.csv")))
+        graph = redisgraph['graph']
+        log.info (f"bulk loading \n  nodes: {nodes} \n  edges: {edges}")
+        print (f"bulk loading \n  nodes: {nodes} \n  edges: {edges}")
+
+        try:
+            log.info (f"deleting graph {graph} in preparation for bulk load.")
+            db = self.get_redisgraph (redisgraph)
+            db.redis_graph.delete ()
+        except redis.exceptions.ResponseError:
+            log.info ("no graph to delete")
+            
+        log.info (f"bulk loading graph: {graph}")        
+        args = []
+        if len(nodes) > 0:
+            args.extend (("-n " + " -n ".join (nodes)).split ())
+        if len(edges) > 0:
+            args.extend (("-r " + " -r ".join (edges)).split ())
+        args.extend ([ "--separator=|" ])
+        args.extend ([ redisgraph['graph'] ])
+        """ standalone_mode=False tells click not to sys.exit() """
+        bulk_insert (args, standalone_mode=False)
+
+    def get_redisgraph (self, redisgraph):
+        return RedisGraph (host=redisgraph['host'],
+                           port=redisgraph['ports']['http'],
+                           graph=redisgraph['graph'])
+    
+    def validate (self):
+        redisgraph = config.get('redisgraph', {})
+        print (f"config:{json.dumps(redisgraph, indent=2)}")
+        db = self.get_redisgraph (redisgraph)
+        validation_queries = config.get('validation', {}).get('queries', [])
+        for key, query in validation_queries.items ():
+            text = query['query']
+            name = query['name']
+            args = query.get('args', [{}])
+            for arg in args:
+                start = Util.current_time_in_millis ()
+                instance = Template (text).safe_substitute (arg)
+                db.query (instance)
+                duration = Util.current_time_in_millis () - start
+                log.info (f"Query {key}:{name} ran in {duration}ms: {instance}") 
+            
 class Roger:
     """ Consolidate Roger functionality for a cleaner interface. """
 
@@ -544,7 +596,7 @@ class Roger:
         :param traceback: The stack trace explaining the exception. 
         """
         if exception_type or exception_value or traceback:
-            log.error (exception_type, exception_value, traceback)
+            log.error ("{} {} {}".format (exception_type, exception_value, traceback))
         log.removeHandler (self.string_handler)
         
 class RogerUtil:
@@ -582,16 +634,34 @@ class RogerUtil:
             output = roger.log_stream.getvalue () if to_string else None
         return output
 
+    @staticmethod
+    def bulk_load (to_string=False):
+        output = None
+        with Roger (to_string) as roger:
+            roger.bulk.insert ()
+            output = roger.log_stream.getvalue () if to_string else None
+        return output
+
+    @staticmethod
+    def validate (to_string=False):
+        output = None
+        with Roger (to_string) as roger:
+            roger.bulk.validate ()
+            output = roger.log_stream.getvalue () if to_string else None
+        return output
+    
 if __name__ == "__main__":
     """ Roger CLI. """
     parser = argparse.ArgumentParser(description='Roger')
-    parser.add_argument('-b', '--create-bulk', help="Create bulk load", action='store_true')
-    parser.add_argument('-s', '--create-schema', help="Infer schema", action='store_true')
-    parser.add_argument('-g', '--get-kgx', help="Get KGX objects", action='store_true')
-    parser.add_argument('-l', '--load-kgx', help="Load via KGX", action='store_true')
-    parser.add_argument('-m', '--merge-kgx', help="Merge KGX nodes", action='store_true')
     parser.add_argument('-v', '--dataset-version', help="Dataset version.", default="v0.1")
     parser.add_argument('-d', '--data-root', help="Root of data hierarchy", default=None)
+    parser.add_argument('-g', '--get-kgx', help="Get KGX objects", action='store_true')
+    parser.add_argument('-l', '--load-kgx', help="Load via KGX", action='store_true')
+    parser.add_argument('-s', '--create-schema', help="Infer schema", action='store_true')
+    parser.add_argument('-m', '--merge-kgx', help="Merge KGX nodes", action='store_true')
+    parser.add_argument('-b', '--create-bulk', help="Create bulk load", action='store_true')
+    parser.add_argument('-i', '--insert', help="Do the bulk insert", action='store_true')
+    parser.add_argument('-a', '--validate', help="Validate the insert", action='store_true')
     args = parser.parse_args ()
 
     biolink = BiolinkModel ()
@@ -610,5 +680,9 @@ if __name__ == "__main__":
         kgx.create_schema ()
     if args.create_bulk:
         bulk.create ()
+    if args.insert:
+        bulk.insert ()
+    if args.validate:
+        bulk.validate ()
 
     sys.exit (0)

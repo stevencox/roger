@@ -51,9 +51,8 @@ client () {
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export ROGER_HOME=$( dirname $DIR )
-#export ROGER_HOME=~/dev/roger
 export DATA_HOME=$ROGER_HOME/roger/data
-export PYTHONPATH=~/dev/kgx:$ROGER_HOME
+export PYTHONPATH=$ROGER_HOME:$ROGER_HOME/../kgx
 export DB_NAME=test
 
 roger () {
@@ -95,20 +94,10 @@ bulk () {
 	time roger --create-bulk $*
     }
     load () {
-	if [ "$1" == "--data-root" ]; then
-	    DATA_HOME=$2
-	    shift; shift;
-	fi
-	redis-cli GRAPH.DELETE $DB_NAME
-	nargs=$(echo $DATA_HOME/bulk/nodes/* | sed -e 's, , --nodes ,g')
-	rargs=$(echo $DATA_HOME/bulk/edges/* | sed -e 's, , --relations ,g')
-	do_load --nodes $nargs --relations $rargs $*
+	time roger --insert $*
     }
-    do_load () {
-	echo deleting existing graph...
-	redis-cli GRAPH.DELETE test || true
-	echo running bulk load...
-	time redisgraph-bulk-loader test $* --separator "|"
+    validate () {
+	roger --validate $*
     }
     clean () {
 	rm -rf $DATA_HOME/bulk
@@ -116,28 +105,6 @@ bulk () {
     $*
 }
 
-vars="
-TOPMED.TAG:8
-TOPMED.VAR:phv00000484.v1.p10
-TOPMED.VAR:phv00000487.v1.p10
-TOPMED.VAR:phv00000496.v1.p10
-TOPMED.VAR:phv00000517.v1.p10
-TOPMED.VAR:phv00000518.v1.p10
-TOPMED.VAR:phv00000528.v1.p10
-TOPMED.VAR:phv00000529.v1.p10
-TOPMED.VAR:phv00000530.v1.p10
-TOPMED.VAR:phv00000531.v1.p10"
-validate () {
-    query "MATCH (a) RETURN count(a)"
-    query "MATCH (a)-[e]-(b) RETURN count(e)"
-    for v in $vars; do
-	query="MATCH (a { id : '$v' })--(b) RETURN a.category, b.id"
-	echo $query
-	query "$query"
-    done
-    query "MATCH (a)-[e]-(b) RETURN count(a), count(b)"
-    query "MATCH (a:gene)-[e]-(b) WHERE 'chemical_substance' IN b.category RETURN count(distinct(a)), count(distinct(b))"
-}
 query () {
     query="$1"
     echo "$query"
@@ -145,38 +112,14 @@ query () {
 }
 
 all () {
-#    kgx clean all
-#    bulk clean
+    kgx clean all
+    bulk clean
     kgx get
     kgx merge
     kgx schema
     bulk create
     bulk load
     validate
-}
-
-f () {
-# https://medium.com/@Drew_Stokes/bash-argument-parsing-54f3b81a6a8f
-PARAMS=""
-while (( "$#" )); do
-    case "$1" in
-	-d|--data-root)
-	    if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-		DATA_HOME=$2
-		shift 2
-	    else
-		echo "Error: Argument for $1 is missing" >&2
-		exit 1
-	    fi
-	    ;;
-	*) # preserve positional arguments
-	    PARAMS="$PARAMS $1"
-	    shift
-	    ;;
-    esac
-done
-# set positional arguments in their proper place
-eval set -- "$PARAMS"
 }
 
 $*

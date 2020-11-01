@@ -61,8 +61,11 @@ with DAG(
     create_schema = create_python_task ("CreateSchema", RogerUtil.create_schema)
     merge_nodes = create_python_task ("MergeNodes", RogerUtil.merge_nodes)
     create_bulk_load = create_python_task ("CreateBulkLoad", RogerUtil.create_bulk_load)
+    bulk_load = create_python_task ("BulkLoad", RogerUtil.bulk_load)
+    validate = create_python_task ("Validate", RogerUtil.validate)
     finish = BashOperator (task_id='Finish', bash_command='echo finish')
 
     """ Build the DAG. """
-    intro >> get_kgx >> [ create_schema, merge_nodes ] >> create_bulk_load >> finish
+    intro >> get_kgx >> [ create_schema, merge_nodes ] >> create_bulk_load >> \
+        bulk_load >> validate >> finish
     

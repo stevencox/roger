@@ -1,12 +1,9 @@
-
 import logging
-import sys
-from os import path
-import json
-from typing import Dict, Any, Optional
-
 import requests
+import sys
 import yaml
+from os import path
+from typing import Dict, Any, Optional
 
 config: Optional[Dict[str, Any]] = None
 logger: Optional[logging.Logger] = None
