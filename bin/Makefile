@@ -57,5 +57,5 @@ install: tables
 	$(TIME) $(ROGER) bulk load --data-root $(DATA_ROOT)
 
 validate:
-	$(TIME) $(ROGER) validate --data-root $(DATA_ROOT)
+	$(TIME) $(ROGER) bulk validate --data-root $(DATA_ROOT)
 
