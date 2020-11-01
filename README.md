@@ -453,7 +453,7 @@ internal execution time 3538.9259
 
 This is Roger in Airflow. This is a local run. Next steps: Kubernetes.
 
-![image](https://user-images.githubusercontent.com/306971/97787836-e9fc6080-1b8a-11eb-9d75-141498ebe447.png)
+![image](https://user-images.githubusercontent.com/306971/97792715-18dcfb80-1bb8-11eb-98d7-ea43992134de.png)
 
 ### Running in Airflow
 In one window:
