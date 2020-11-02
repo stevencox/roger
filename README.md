@@ -67,7 +67,11 @@ Runs a configurable list of queries with timing information to quality check the
 
 Roger uses Redisgraph's new bulk loader which is available in the 'edge' tagged Docker image.
 
-You can run the container normally or with `/bin/bash` at the end to get a shell, like this:
+You can run the container like this and use it immediately
+```
+docker run -p 6379:6379 -it --rm --name redisgraph redislabs/redisgraph:edge
+```
+or run it with `/bin/bash` at the end to get a shell like this:
 ```
 docker run -p 6379:6379 -it --rm --name redisgraph redislabs/redisgraph:edge /bin/bash
 ```
