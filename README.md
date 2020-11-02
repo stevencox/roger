@@ -82,7 +82,7 @@ This lets you have a look around inside the container. To start Redis with the g
 
 A clean Roger build looks like this. Times below are on a Macbook Air.
 
-This can be run as
+This can be run in the bin directory as
 ```
 $ make clean install validate
 ```
