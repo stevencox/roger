@@ -1,6 +1,7 @@
 # roger
 
 Roger is an automated graph data curation pipeline.
+![image](https://user-images.githubusercontent.com/306971/97894880-0c17ef00-1d01-11eb-8162-0b6bd977769d.png)
 
 It transforms Knowledge Graph eXchange (KGX) files into a graph database in phases:
 * **get**: Fetch KGX files from a repository.
