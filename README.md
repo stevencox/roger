@@ -7,7 +7,7 @@ It transforms Knowledge Graph eXchange (KGX) files into a graph database in phas
 * **get**: Fetch KGX files from a repository.
 * **merge**: Merge duplicate nodes accross multiple KGX files.
 * **schema**: Infer the schema properties of nodes and edges.
-* **bulk create**: Format for bulk load to Redisgraph.
+* **bulk create**: Format for [bulk load to Redisgraph](https://github.com/RedisGraph/redisgraph-bulk-loader).
 * **bulk load**: Load into Redisgraph
 * **validate**: Execute test queries to validate the bulk load.
 
