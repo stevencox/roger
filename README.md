@@ -15,7 +15,12 @@ It transforms Knowledge Graph eXchange (KGX) files into a graph database in phas
 
 Requires Python 3.7+, Docker, and Make.
 
+Also requires KGX fork with Redisgraph Transformer.
+
 ```
+$ git clone https://github.com/stevencox/kgx
+$ git clone <this repo>
+$ cd <this repo>
 $ pip install requirements.txt
 $ bin/roger all
 ```
