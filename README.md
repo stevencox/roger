@@ -1,12 +1,13 @@
 # roger
 
 Roger is an automated graph data curation pipeline.
+![image](https://user-images.githubusercontent.com/306971/97894880-0c17ef00-1d01-11eb-8162-0b6bd977769d.png)
 
-It transforms Knowledge Graph eXchange (KGX) files into a graph database in phases:
+The first workflow transforms Knowledge Graph eXchange ([KGX](https://github.com/biolink/kgx)) files into a graph database in phases:
 * **get**: Fetch KGX files from a repository.
 * **merge**: Merge duplicate nodes accross multiple KGX files.
 * **schema**: Infer the schema properties of nodes and edges.
-* **bulk create**: Format for bulk load to Redisgraph.
+* **bulk create**: Format for [bulk load to Redisgraph](https://github.com/RedisGraph/redisgraph-bulk-loader).
 * **bulk load**: Load into Redisgraph
 * **validate**: Execute test queries to validate the bulk load.
 
@@ -14,7 +15,12 @@ It transforms Knowledge Graph eXchange (KGX) files into a graph database in phas
 
 Requires Python 3.7+, Docker, and Make.
 
+Also requires KGX fork with Redisgraph Transformer.
+
 ```
+$ git clone https://github.com/stevencox/kgx
+$ git clone <this repo>
+$ cd <this repo>
 $ pip install requirements.txt
 $ bin/roger all
 ```
@@ -66,7 +72,11 @@ Runs a configurable list of queries with timing information to quality check the
 
 Roger uses Redisgraph's new bulk loader which is available in the 'edge' tagged Docker image.
 
-You can run the container normally or with `/bin/bash` at the end to get a shell, like this:
+You can run the container like this and use it immediately
+```
+docker run -p 6379:6379 -it --rm --name redisgraph redislabs/redisgraph:edge
+```
+or run it with `/bin/bash` at the end to get a shell like this:
 ```
 docker run -p 6379:6379 -it --rm --name redisgraph redislabs/redisgraph:edge /bin/bash
 ```
@@ -77,7 +87,7 @@ This lets you have a look around inside the container. To start Redis with the g
 
 A clean Roger build looks like this. Times below are on a Macbook Air.
 
-This can be run as
+This can be run in the bin directory as
 ```
 $ make clean install validate
 ```
