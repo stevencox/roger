@@ -499,7 +499,6 @@ The Airflow interface shows the workflow:
 
 Use the Trigger icon to run the workflow immediatley.
 
-### KGX Intro
 
 
 
