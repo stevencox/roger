@@ -541,7 +541,9 @@ class BulkLoad:
         if len(edges) > 0:
             args.extend (("-r " + " -r ".join (edges)).split ())
         args.extend ([ "--separator=|" ])
-        args.extend ([ redisgraph['graph'] ])
+        args.extend([f"--host={redisgraph['host']}"])
+        args.extend([f"--port={redisgraph['ports']['http']}"])
+        args.extend([f"--password={redisgraph['password']}"])
         """ standalone_mode=False tells click not to sys.exit() """
         bulk_insert (args, standalone_mode=False)
 
