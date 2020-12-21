@@ -9,9 +9,9 @@ logger = get_logger ()
 class RedisGraph:
     """ Graph abstraction over RedisGraph. A thin wrapper but provides us some options. """
     
-    def __init__(self, host='localhost', port=6379, graph='default'):
+    def __init__(self, host='localhost', port=6379, graph='default', password=''):
         """ Construct a connection to Redis Graph. """
-        self.r = redis.Redis(host=host, port=port)
+        self.r = redis.Redis(host=host, port=port, password=password)
         self.redis_graph = Graph(graph, self.r)
 
     def add_node (self, identifier=None, label=None, properties=None):
