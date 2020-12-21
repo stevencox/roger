@@ -11,7 +11,7 @@ init () {
     helm repo update
 }
 start () {
-    helm install "airflow" stable/airflow \
+    helm upgrade --install "airflow" stable/airflow \
 	 --version "$version" \
 	 --namespace "$namespace" \
 	 --values ./custom-values.yaml

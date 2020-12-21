@@ -12,7 +12,10 @@
 airflow:
   ## the airflow executor type to use
   ##
-  executor: CeleryExecutor
+  image:
+    repository: renciorg/apache-airflow-1.10.12-python-3.8-git
+    tag: latest
+    executor: CeleryExecutor
 #  executor: KubernetesExecutor
 
   ## the fernet key used to encrypt the connections in the database
@@ -33,6 +36,37 @@ airflow:
 
     ## Disable noisy "Handling signal: ttou" Gunicorn log messages
     GUNICORN_CMD_ARGS: "--log-level WARNING"
+
+  extraPipPackages:
+    - Babel==2.8.0
+    - biolink-model==1.2.5
+    - biolinkml==1.5.8
+    - redisgraph==2.1.5
+    - redisgraph-bulk-loader==0.9.3
+    - flatten-dict
+    ###################################
+    # Volumes
+    ###################################
+
+    ## EXAMPLE:
+    ##   extraVolumeMounts:
+    ##     - name: synchronised-dags
+    ##       mountPath: /opt/airflow/dags
+    ##
+  extraVolumeMounts:
+    - name: roger-data
+      mountPath: /dags/roger/data
+
+    ## extra volumes for the web/scheduler/worker Pods
+    ##
+    ## EXAMPLE:
+    ##   extraVolumes:
+    ##     - name: synchronised-dags
+    ##       emptyDir: {}
+    ##
+  extraVolumes:
+    - name: roger-data
+      emptyDir: {}
 
 ###################################
 # Airflow - Scheduler Configs
@@ -94,7 +128,7 @@ dags:
     ##
     #url: "ssh://git@repo.example.com/my-airflow-dags.git"
     #url: "ssh://git@github.com/stevencox/airflow.git"
-    url: "ssh://git@github.com/stevencox/roger.git"
+    url: "ssh://git@github.com/helxplatform/roger.git"
     
     ## the branch/tag/sha1 which we clone
     ##
@@ -143,6 +177,7 @@ dags:
       ## the git sync interval in seconds
       ##
       refreshTime: 60
+  installRequirments: true
 
 ###################################
 # Database - PostgreSQL Chart
