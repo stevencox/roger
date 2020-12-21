@@ -44,6 +44,7 @@ airflow:
     - redisgraph==2.1.5
     - redisgraph-bulk-loader==0.9.3
     - flatten-dict
+    - git+https://github.com/stevencox/kgx.git
     ###################################
     # Volumes
     ###################################
@@ -132,7 +133,7 @@ dags:
     
     ## the branch/tag/sha1 which we clone
     ##
-    ref: main
+    ref: redis-helm
 
     ## the name of a pre-created secret containing files for ~/.ssh/
     ##

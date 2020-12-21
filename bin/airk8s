@@ -4,14 +4,14 @@ set -x
 set -e
 
 namespace=${NAMESPACE:-scox}
-version=v7.11.0
+version=v7.15.0
 
 init () {
-    helm repo add stable https://kubernetes-charts.storage.googleapis.com
+    helm repo add airflow-stable https://airflow-helm.github.io/charts
     helm repo update
 }
 start () {
-    helm upgrade --install "airflow" stable/airflow \
+    helm install "airflow" airflow-stable/airflow \
 	 --version "$version" \
 	 --namespace "$namespace" \
 	 --values ./custom-values.yaml
