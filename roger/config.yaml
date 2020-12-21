@@ -3,8 +3,7 @@ redisgraph:
   password: ""
   host: localhost
   graph: test
-  ports:
-     http: 6379
+  port: 6379
 
 logging:
   level: DEBUG

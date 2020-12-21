@@ -204,9 +204,12 @@ class Util:
         
 class KGXModel:
     """ Abstractions for transforming Knowledge Graph Exchange formatted data. """
-    def __init__(self, biolink):
+    def __init__(self, biolink, config=None):
+        if not config:
+            config = get_config()
+        self.config = config
         self.biolink = biolink
-        
+
     def get (self, dataset_version = "v0.1"):
         """ Read metadata for edge and node files, then join them into whole KGX objects
         containing both nodes and edges. 
@@ -383,9 +386,9 @@ class KGXModel:
     def load (self):
         """ Use KGX to load a data set into Redisgraph """
         input_format = "json"
-        uri = f"redis://{config['redisgraph']['host']}:{config['redisgraph']['ports']['http']}/"
-        username = config['redisgraph']['username']
-        password = config['redisgraph']['password']
+        uri = f"redis://{self.config['redisgraph']['host']}:{self.config['redisgraph']['port']}/"
+        username = self.config['redisgraph']['username']
+        password = self.config['redisgraph']['password']
         log.info (f"connecting to redisgraph: {uri}")
         for subgraph in glob.glob (f"{kgx_repo}/**.json"):
             redisgraph_upload(inputs=[ subgraph ],
@@ -423,8 +426,11 @@ class BiolinkModel:
 
 class BulkLoad:
     """ Tools for creating a Redisgraph bulk load dataset. """
-    def __init__(self, biolink):
+    def __init__(self, biolink, config=None):
         self.biolink = biolink
+        if not config:
+            config = get_config()
+        self.config = config
 
     def tables_up_to_date (self):
         return Util.is_up_to_date (
@@ -519,13 +525,12 @@ class BulkLoad:
                     stream.write ("\n")
 
     def insert (self):
-        redisgraph = config.get('redisgraph', {})
-        bulk_loader = config.get('bulk_loader', {})
+        redisgraph = self.config.get('redisgraph', {})
+        bulk_loader = self.config.get('bulk_loader', {})
         nodes = sorted(glob.glob (Util.bulk_path ("nodes/**.csv")))
         edges = sorted(glob.glob (Util.bulk_path ("edges/**.csv")))
         graph = redisgraph['graph']
-        log.info (f"bulk loading \n  nodes: {nodes} \n  edges: {edges}")
-        print (f"bulk loading \n  nodes: {nodes} \n  edges: {edges}")
+        log.info(f"bulk loading \n  nodes: {nodes} \n  edges: {edges}")
 
         try:
             log.info (f"deleting graph {graph} in preparation for bulk load.")
@@ -537,23 +542,25 @@ class BulkLoad:
         log.info (f"bulk loading graph: {graph}")        
         args = []
         if len(nodes) > 0:
-            args.extend (("-n " + " -n ".join (nodes)).split ())
+            args.extend(("-n " + " -n ".join(nodes)).split())
         if len(edges) > 0:
-            args.extend (("-r " + " -r ".join (edges)).split ())
-        args.extend ([ "--separator=|" ])
+            args.extend(("-r " + " -r ".join(edges)).split())
+        args.extend(["--separator=|"])
         args.extend([f"--host={redisgraph['host']}"])
-        args.extend([f"--port={redisgraph['ports']['http']}"])
+        args.extend([f"--port={redisgraph['port']}"])
         args.extend([f"--password={redisgraph['password']}"])
+        args.extend([f"{redisgraph['graph']}"])
         """ standalone_mode=False tells click not to sys.exit() """
         bulk_insert (args, standalone_mode=False)
 
     def get_redisgraph (self, redisgraph):
         return RedisGraph (host=redisgraph['host'],
-                           port=redisgraph['ports']['http'],
+                           port=redisgraph['port'],
+                           password=redisgraph.get('password', ''),
                            graph=redisgraph['graph'])
     
     def validate (self):
-        redisgraph = config.get('redisgraph', {})
+        redisgraph = self.config.get('redisgraph', {})
         print (f"config:{json.dumps(redisgraph, indent=2)}")
         db = self.get_redisgraph (redisgraph)
         validation_queries = config.get('validation', {}).get('queries', [])
@@ -571,20 +578,24 @@ class BulkLoad:
 class Roger:
     """ Consolidate Roger functionality for a cleaner interface. """
 
-    def __init__(self, to_string=False):
+    def __init__(self, to_string=False, config=None):
         """ Initialize.
         :param to_string: Log messages to a string, available as self.log_stream.getvalue() 
         after execution completes.
         """
         import logging
+        self.has_string_handler = to_string
+        if not config:
+            config = get_config()
+        self.config = config
         if to_string:
             """ Add a stream handler to enable to_string. """
             self.log_stream = StringIO()
             self.string_handler = logging.StreamHandler (self.log_stream)
             log.addHandler (self.string_handler)
         self.biolink = BiolinkModel ()
-        self.kgx = KGXModel (self.biolink)
-        self.bulk = BulkLoad (self.biolink)
+        self.kgx = KGXModel (self.biolink, config=config)
+        self.bulk = BulkLoad (self.biolink, config=config)
 
     def __enter__(self):
         """ Implement Python's Context Manager interface. """
@@ -599,55 +610,56 @@ class Roger:
         """
         if exception_type or exception_value or traceback:
             log.error ("{} {} {}".format (exception_type, exception_value, traceback))
-        log.removeHandler (self.string_handler)
+        if self.has_string_handler:
+            log.removeHandler (self.string_handler)
         
 class RogerUtil:
     """ An interface abstracting Roger's inner workings to make it easier to
     incorporate into external tools like workflow engines. """
     @staticmethod
-    def get_kgx (to_string=False):
+    def get_kgx (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.kgx.get ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
     
     @staticmethod
-    def create_schema (to_string=False):
+    def create_schema (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.kgx.create_schema ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
     
     @staticmethod
-    def merge_nodes (to_string=False):
+    def merge_nodes (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.kgx.merge ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
     
     @staticmethod
-    def create_bulk_load (to_string=False):
+    def create_bulk_load (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.bulk.create ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
 
     @staticmethod
-    def bulk_load (to_string=False):
+    def bulk_load (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.bulk.insert ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
 
     @staticmethod
-    def validate (to_string=False):
+    def validate (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.bulk.validate ()
             output = roger.log_stream.getvalue () if to_string else None
         return output

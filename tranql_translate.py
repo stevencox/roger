@@ -12,7 +12,9 @@ from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
+from flatten_dict import flatten, unflatten
 from roger.core import RogerUtil
+from roger.roger_util import get_config, get_logger
 
 default_args = {
     'owner': 'RENCI',
@@ -41,6 +43,32 @@ with DAG(
         }
         return k8s_executor_config if at_k8s else None
 
+    def task_wrapper(python_callable, **kwargs):
+        """
+        Overrides configuration with config from airflow.
+        :param python_callable:
+        :param kwargs:
+        :return:
+        """
+        # get dag config provided
+        dag_run = kwargs.get('dag_run')
+        dag_conf = {}
+        logger = get_logger()
+        config = get_config()
+        if dag_run:
+            dag_conf = dag_run.conf
+            # remove this since to send every other argument to the python callable.
+            print(dag_conf)
+            del kwargs['dag_run']
+        # overrides values
+        config_flat = flatten(config)
+        dag_conf_flat = flatten(dag_conf)
+        config_flat.update(dag_conf_flat)
+        config = unflatten(config_flat)
+        logger.info("Config")
+        logger.info(config)
+        return python_callable(to_string=True, config=config)
+
     def create_python_task (name, a_callable):
         """ Create a python task.
         :param name: The name of the task.
@@ -48,11 +76,16 @@ with DAG(
         """
         return PythonOperator(
             task_id=name,
-            python_callable=a_callable,
-            op_kwargs={ 'to_string' : True },
+            python_callable=task_wrapper,
+            op_kwargs={
+                "python_callable": a_callable,
+                "to_string": True
+            },
             executor_config=get_executor_config (annotations={
                 "task_name" : name
-            })
+            }),
+            dag=dag,
+            provide_context=True
         )
 
     """ Build the workflow tasks. """
