@@ -12,9 +12,9 @@ from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
-from flatten_dict import flatten, unflatten
 from roger.core import RogerUtil
-from roger.roger_util import get_config, get_logger
+from roger.Config import get_default_config as get_config
+from roger.roger_util import get_logger
 
 default_args = {
     'owner': 'RENCI',
@@ -58,13 +58,9 @@ with DAG(
         if dag_run:
             dag_conf = dag_run.conf
             # remove this since to send every other argument to the python callable.
-            print(dag_conf)
             del kwargs['dag_run']
         # overrides values
-        config_flat = flatten(config)
-        dag_conf_flat = flatten(dag_conf)
-        config_flat.update(dag_conf_flat)
-        config = unflatten(config_flat)
+        config.update(dag_conf)
         logger.info("Config")
         logger.info(config)
         return python_callable(to_string=True, config=config)
