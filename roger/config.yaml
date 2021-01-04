@@ -14,7 +14,7 @@ base_data_uri: https://stars.renci.org/var/kgx_data
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:
-  separator: "|"
+  separator: 0x1E
   enforce_schema: False
   skip_invalid_nodes: False
   skip_invalid_edges: False

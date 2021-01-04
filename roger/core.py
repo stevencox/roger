@@ -682,7 +682,9 @@ if __name__ == "__main__":
     kgx = KGXModel (biolink)
     bulk = BulkLoad (biolink)
     if args.data_root is not None:
-        data_root = get_config()['data_root'] = args.data_root
+        config = get_config()
+        data_root = args.data_root
+        config.update({'data_root': data_root})
         log.info (f"data root:{data_root}")
     if args.get_kgx:
         kgx.get (dataset_version=args.dataset_version)
