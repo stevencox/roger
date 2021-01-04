@@ -133,7 +133,7 @@ dags:
     
     ## the branch/tag/sha1 which we clone
     ##
-    ref: redis-helm
+    ref: main
 
     ## the name of a pre-created secret containing files for ~/.ssh/
     ##
