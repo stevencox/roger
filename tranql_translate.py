@@ -86,7 +86,7 @@ with DAG(
         )
 
     """ Build the workflow tasks. """
-    intro = BashOperator(task_id='Intro', bash_command='echo running tranql translator')
+    intro = BashOperator(task_id='Intro', bash_command='echo running tranql translator && exit 0')
     get_kgx = create_python_task ("GetSource", RogerUtil.get_kgx)
     create_schema = create_python_task ("CreateSchema", RogerUtil.create_schema)
     merge_nodes = create_python_task ("MergeNodes", RogerUtil.merge_nodes)
