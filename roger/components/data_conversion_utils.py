@@ -17,11 +17,11 @@ class TypeConversionUtil:
             'constructor': lambda x: True if x else False
         },
         float.__name__: {
-            'priority': 3,
+            'priority': 2,
             'constructor': lambda x: float(x),
         },
         int.__name__: {
-            'priority': 4,
+            'priority': 2,
             'constructor': lambda x: int(x)
         }
     }
@@ -47,8 +47,19 @@ class TypeConversionUtil:
         :param data_type_2:
         :return:
         """
-        assert data_type in TypeConversionUtil.type_map, f"Unrecognised type {data_type} for list of types {list(type_map.keys())}"
-        assert data_type_2 in TypeConversionUtil.type_map, f"Unrecognised type {data_type} for list of types {list(type_map.keys())}"
+        assert data_type in TypeConversionUtil.type_map, f"Unrecognised type {data_type} From types:" \
+                                                         f"{list(TypeConversionUtil.type_map.keys())}"
+
+        assert data_type_2 in TypeConversionUtil.type_map, f"Unrecognised type {data_type} From types: " \
+                                                           f"{list(TypeConversionUtil.type_map.keys())}"
+
         d1_val = TypeConversionUtil.type_map[data_type]['priority']
         d2_val = TypeConversionUtil.type_map[data_type_2]['priority']
+
+        if data_type != data_type_2 and d1_val == d2_val:
+            # For float int and bool have same priority
+            # treat them as strings.
+            d1_val = (d1_val - 1)
+            data_type = str.__name__
+
         return data_type if d1_val < d2_val else data_type_2
