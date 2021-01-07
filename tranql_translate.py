@@ -29,7 +29,7 @@ with DAG(
 ) as dag:
 
     """ Configure use of KubernetesExecutor. """
-    at_k8s=False
+    at_k8s=True
     
     def get_executor_config (annotations=None):
         """ Get an executor configuration.
@@ -38,7 +38,8 @@ with DAG(
         """
         k8s_executor_config = {
             "KubernetesExecutor": {
-                "annotations": annotations
+                "annotations": annotations,
+                "image": "renciorg/airflow:1.10.12-python3.8"
             }
         }
         return k8s_executor_config if at_k8s else None
@@ -97,4 +98,3 @@ with DAG(
     """ Build the DAG. """
     intro >> get_kgx >> [ create_schema, merge_nodes ] >> create_bulk_load >> \
         bulk_load >> validate >> finish
-    
