@@ -42,7 +42,7 @@ airflow:
     - biolink-model==1.2.5
     - biolinkml==1.5.8
     - redisgraph==2.1.5
-    - redisgraph-bulk-loader==0.9.3
+    - git+https://github.com/RedisGraph/redisgraph-bulk-loader.git
     - flatten-dict
     - git+https://github.com/stevencox/kgx.git
     ###################################
@@ -133,7 +133,7 @@ dags:
     
     ## the branch/tag/sha1 which we clone
     ##
-    ref: main
+    ref: redis-helm
 
     ## the name of a pre-created secret containing files for ~/.ssh/
     ##
