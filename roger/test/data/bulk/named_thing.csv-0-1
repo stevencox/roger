@@ -1,0 +1,4 @@
+str:STRING|list_attr:ARRAY|bool_attr:BOOL|float_attr:FLOAT|int_attr:INT|id:ID
+name|['x']|False|0.1|0|ID:1
+name|['x']|False|0.1|0|ID:1
+name|['x']|False|0.1|0|ID:1

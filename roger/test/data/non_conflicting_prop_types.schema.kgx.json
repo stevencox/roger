@@ -1,0 +1,91 @@
+{
+  "nodes": [
+    {
+      "id": "ID1",
+      "category": ["named_thing"],
+      "list_attr": [],
+      "bool_attr": false,
+      "int_attr": 0
+    },
+    {
+      "id": "ID2",
+      "category": ["named_thing"],
+      "str_attr": "",
+      "float_attr": 0.0
+    },
+    {
+      "id": "Id3",
+      "category": ["some_other_type"],
+      "attr_1": "",
+      "attr_2": [],
+      "attr_3": true,
+      "attr_4": 1
+    }
+  ],
+  "edges": [
+    {
+      "edge_label": "edge_label_1",
+      "id": "x",
+      "bool_attr": false,
+      "int_attr": 0,
+      "float_attr": 0.0
+    },{
+      "edge_label": "edge_label_1",
+      "id": "x3",
+      "str_attr": "str",
+      "list_attr": []
+    },{
+      "edge_label": "edge_label_2",
+      "id": "x4",
+      "str_attr": "str"
+    }, {
+      "edge_label": "edge_label_2",
+      "id": "x3",
+      "bool_attr": true,
+      "float_attr": 2.33,
+      "int_attr": 3092,
+      "str_att": "name"
+    }
+  ],
+  "expected_schema": {
+    "category-schema.json": {
+      "named_thing": {
+        "str_attr": "str",
+        "list_attr": "list",
+        "bool_attr": "bool",
+        "int_attr": "int",
+        "float_attr": "float",
+        "id": "str",
+        "category": "list"
+      },
+      "some_other_type": {
+        "id": "str",
+        "category": "list",
+        "attr_1": "str",
+        "attr_2": "list",
+        "attr_3": "bool",
+        "attr_4": "int"
+      }
+    },
+    "predicate-schema.json": {
+      "edge_label_1": {
+        "id": "str",
+        "edge_label": "str",
+        "str_attr": "str",
+        "list_attr": "list",
+        "bool_attr": "bool",
+        "int_attr": "int",
+        "float_attr": "float"
+      },
+      "edge_label_2": {
+        "id": "str",
+        "str_attr": "str",
+        "edge_label": "str",
+        "bool_attr": "bool",
+        "float_attr": "float",
+        "int_attr":  "int",
+        "str_att": "str"
+      }
+    }
+  }
+}

@@ -263,11 +263,10 @@ class KGXModel:
                 predicate_schemas[predicate] = predicate_schemas.get(predicate, {})
                 for k in edge.keys ():
                     current_type = type(edge[k]).__name__
-                    if not k in predicate_schemas[predicate]:
+                    if k not in predicate_schemas[predicate]:
                         predicate_schemas[predicate][k] = current_type
                     else:
                         previous_type = predicate_schemas[predicate][k]
-                        # prefering lists over strings over bools over floats over ints
                         predicate_schemas[predicate][k] = TypeConversionUtil.compare_types(previous_type, current_type)
             """ Infer node schemas. """
             for node in graph['nodes']:
@@ -275,7 +274,7 @@ class KGXModel:
                 category_schemas[node_type] = category_schemas.get(node_type, {})
                 for k in node.keys ():
                     current_type = type(node[k]).__name__
-                    if not k in category_schemas[node_type]:
+                    if  k not in category_schemas[node_type]:
                         category_schemas[node_type][k] = current_type
                     else:
                         previous_type = category_schemas[node_type][k]
@@ -521,7 +520,8 @@ class BulkLoad:
         col_headers = list(filter(lambda x: x != 'id:STRING', col_headers))
         return col_headers
 
-    def group_items_by_attributes_set(self, objects: list, processed_object_ids: set):
+    @staticmethod
+    def group_items_by_attributes_set(objects: list, processed_object_ids: set):
         """
         Groups items into a dictionary where the keys are sets of attributes set for all
         items accessed in that key.
@@ -532,14 +532,15 @@ class BulkLoad:
         :return: dictionary grouping based on set attributes
         """
         clustered_by_set_values = {}
-        improper_redis_keys = set()
+        improper_keys = set()
+        value_set_test = lambda x: True if (x is not None and x != [] and x != '') else False
         for obj in objects:
             # redis bulk loader needs columns not to include ':'
             # till backticks are implemented we should avoid these.
             key_filter = lambda k:  ':' not in k
-            keys_with_values = frozenset([k for k in obj.keys() if obj[k] and key_filter(k)])
+            keys_with_values = frozenset([k for k in obj.keys() if value_set_test(obj[k]) and key_filter(k)])
             for key in [k for k in obj.keys() if obj[k] and not key_filter(k)]:
-                improper_redis_keys.add(key)
+                improper_keys.add(key)
             # group by attributes that have values. # Why?
             # Redis bulk loader has one issue
             # imagine we have {'name': 'x'} , {'name': 'y', 'is_metabolite': true}
@@ -551,7 +552,7 @@ class BulkLoad:
             if obj['id'] not in processed_object_ids:
                 clustered_by_set_values[keys_with_values] = clustered_by_set_values.get(keys_with_values, [])
                 clustered_by_set_values[keys_with_values].append(obj)
-        return clustered_by_set_values, improper_redis_keys
+        return clustered_by_set_values, improper_keys
 
     def write_bulk(self, bulk_path, obj_map, schema, state={}, is_relation=False, f=None):
         """ Write a bulk load group of objects.
@@ -580,10 +581,10 @@ class BulkLoad:
                 items = clustered_by_set_values[set_attributes]
                 # When parted files are saved let the file names be collected here
                 state['file_paths'] = state.get('file_paths', {})
-                if key not in state['file_paths']:
-                    state['file_paths'][key] = {set_attributes: ''}
-                out_file = state['file_paths'].get(key, {}).get(set_attributes, '')
-
+                state['file_paths'][key] = state['file_paths'].get(key, {})
+                out_file = state['file_paths'][key][set_attributes] = state['file_paths']\
+                    .get(key, {})\
+                    .get(set_attributes, '')
                 # When calling write bulk , lets say we have processed some
                 # chemicals from file 1 and we start processing file 2
                 # if we are using just index then we might (rather will) end up adding
@@ -591,6 +592,7 @@ class BulkLoad:
                 # by adding called_x_times , if we already found out-file from state obj
                 # we are sure that the schemas match.
                 out_file = f"{bulk_path}/{key}.csv-{index}-{called_x_times}" if not out_file else out_file
+                state['file_paths'][key][set_attributes] = out_file  # store back file name
                 new_file = not os.path.exists(out_file)
                 keys_for_header = {x: all_keys[x] for x in all_keys if x in set_attributes}
                 redis_schema_header = self.create_redis_schema_header(keys_for_header, is_relation)
