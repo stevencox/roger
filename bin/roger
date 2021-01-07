@@ -23,6 +23,10 @@ start () {
 	 --set usePassword=false \
 	 --set master.command="" \
 	 --set slave.command="" \
+	 --set master.readinessProbe.enabled="false" \
+	 --set master.livenessProbe.enabled="false" \
+	 --set slave.readinessProbe.enabled="false" \
+	 --set slave.livenessProbe.enabled="false" \
 	 --set master.extraFlags[0]="--loadmodule /usr/lib/redis/modules/redisgraph.so" \
 	 --set slave.extraFlags[0]="--loadmodule /usr/lib/redis/modules/redisgraph.so" \
 	 --namespace=$namespace \
