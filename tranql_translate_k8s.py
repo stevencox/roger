@@ -39,9 +39,15 @@ with DAG(
         :returns: Returns a KubernetesExecutor if K8s is configured and None otherwise.
         """
         k8s_executor_config = {
-            "KubernetesExecutor": {
-                "annotations": annotations,
-                "image": "renciorg/airflow:1.10.12-python3.8"
+            "pod_override": {
+                "containers": [
+                    {"name": "base",
+                     "env": {
+                         "name": "testing",
+                         "value": "some_val"
+                     }
+                    }
+                ]
             }
 
 
