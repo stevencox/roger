@@ -39,7 +39,7 @@ with DAG(
         k8s_executor_config = {
             "KubernetesExecutor": {
                 "annotations": annotations,
-                "image": "renciorg/airflow:1.10.12-python3.8"
+                "image": "renciorg/airflow-roger:latest"
             }
         }
         return k8s_executor_config if at_k8s else None
