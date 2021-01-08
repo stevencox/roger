@@ -25,7 +25,7 @@ default_args = {
 
 """ Build the workflow's tasks and DAG. """
 with DAG(
-    dag_id='tranql_translate',
+    dag_id='tranql_translate_k8s_pod_overide_test',
     default_args=default_args,
     schedule_interval=None
 ) as dag:
