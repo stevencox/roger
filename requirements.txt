@@ -112,7 +112,7 @@ prologterms==0.0.6
 prometheus-client==0.8.0
 prompt-toolkit==3.0.8
 psutil==5.7.2
-psycopg2-binary=2.8.6
+psycopg2-binary==2.8.6
 PTable==0.9.2
 ptyprocess==0.6.0
 py==1.9.0
