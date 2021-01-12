@@ -49,7 +49,7 @@ with DAG(
                         )
                     ]
                 )
-            ),
+            ).to_dict(),
             }
         return k8s_executor_config if at_k8s else None
 
