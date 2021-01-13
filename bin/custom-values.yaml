@@ -13,10 +13,10 @@ airflow:
   ## the airflow executor type to use
   ##
   image:
-    repository: renciorg/apache-airflow-1.10.12-python-3.8-git
+    repository: renciorg/apache-airflow-1.10.14-python-3.8-git
     tag: latest
-    executor: CeleryExecutor
-#  executor: KubernetesExecutor
+#  executor: CeleryExecutor
+  executor: KubernetesExecutor
 
   ## the fernet key used to encrypt the connections in the database
   ##
@@ -30,7 +30,17 @@ airflow:
     AIRFLOW__API__AUTH_BACKEND: "airflow.api.auth.backend.deny_all"
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "False"
     AIRFLOW__WEBSERVER__RBAC: "False"
-
+    AIRFLOW__KUBERNETES__GIT_REPO: "ssh://git@github.com/helxplatform/roger.git"
+    # https://airflow.apache.org/docs/apache-airflow/1.10.12/configurations-ref.html#git-ssh-key-secret-name
+    AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME: "airflow-secrets"
+    # @TODO change this to master.
+    AIRFLOW__KUBERNETES__GIT_BRANCH: "develop"
+    AIRFLOW__KUBERNETES__GIT_DAGS_FOLDER_MOUNT_POINT: "/opt/airflow/dags"
+    AIRFLOW__KUBERNETES__GIT_SYNC_DEST: "roger"
+    AIRFLOW__KUBERNETES__DAGS_VOLUME_SUBPATH: "roger"
+    AIRFLOW__KUBERNETES__DELETE_WORKER_PODS: "TRUE"
+    AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY: "renciorg/roger-executor"
+    AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG: "0.26"
     # DAGS
     AIRFLOW__CORE__LOAD_EXAMPLES: "False"
 

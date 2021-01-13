@@ -3,28 +3,35 @@
 set -x
 set -e
 
-namespace=${NAMESPACE:-scox}
+namespace=${NAMESPACE:-default}
 version=v7.15.0
+release=${RELEASE:-airflow}
 
 init () {
     helm repo add airflow-stable https://airflow-helm.github.io/charts
     helm repo update
 }
 start () {
-    helm install "airflow" airflow-stable/airflow \
+    helm install $release airflow-stable/airflow \
+	 --version "$version" \
+	 --namespace "$namespace" \
+	 --values ./custom-values.yaml
+}
+update () {
+  helm upgrade --install $release airflow-stable/airflow \
 	 --version "$version" \
 	 --namespace "$namespace" \
 	 --values ./custom-values.yaml
 }
 status () {
-    helm status "airflow" --namespace $namespace
+    helm status $release --namespace $namespace
     echo Scheduler:
     kubectl -n $namespace logs $(kubectl get pods | grep airflow-scheduler | awk '{ print $1 }') -c git-sync
     echo Worker:
     kubectl -n $namespace logs $(kubectl get pods | grep airflow-worker | awk '{ print $1 }') -c git-sync
 }
 stop () {
-    helm delete "airflow" --namespace $namespace
+    helm delete $release --namespace $namespace
 }
 connect () {
     kubectl exec -it \
@@ -34,7 +41,7 @@ connect () {
 	    /bin/bash
 }
 web () {
-    export NODE_PORT=$(kubectl get --namespace $namespace -o jsonpath="{.spec.ports[0].nodePort}" services airflow-web)
+    export NODE_PORT=$(kubectl get --namespace $namespace -o jsonpath="{.spec.ports[0].nodePort}" services ${release}-web)
     export NODE_IP=$(kubectl get nodes --namespace $namespace -o jsonpath="{.items[0].status.addresses[0].address}")
     echo http://$NODE_IP:$NODE_PORT/
     export AIRFLOW_UI=http://$NODE_IP:$NODE_PORT/
