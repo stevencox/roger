@@ -59,8 +59,31 @@ Fetches KGX files according to a data version selecting the set of files to use.
 Merges nodes duplicated across files aggregating properties from all nodes
 ### Schema
 Identify and record the schema (properties) of every edge and node type.
+Schema records the type resolved for each property of a node/edge. The **Schema** step generates category 
+schema file for node schema and predicate schema for edges. In these files properties are collected and 
+scoped based on type of the edges and nodes found. For instances where properties do not have consistent data 
+type across a given scope, the following rule is used to resolve to final data type: 
+
+* If the property has fluctuating type among a boolean, a float or an Integer in the same scope, 
+it's final data type would be a string. 
+* If conflicting property is ever a string but never a list in the scope, it's final data type will be string.
+* If conflicting property is ever a list , it's final data type will be a list. 
+
+Using this approach attributes will be casted based on the resolution set here when loading to the graph database
+in subsequent steps. 
 ### Bulk Create
 Create bulk load CSV files conforming to the Redisgraph Bulk Loader's requirements.
+**Bulk create** uses the Schema  generated in **Schema** step to generate csv headers 
+([redis csv headers](https://github.com/RedisGraph/redisgraph-bulk-loader#input-schemas)) with
+the assumed types . Currently redis bulk loader requires every column to have a value. 
+To address this issue, this step groups the entities being processed (edges/nodes)
+based on attributes that have values. Then these groups are written into separate csv files. Nodes 
+are written as csv(s) under `<roger-data-dir>/bulk/nodes` and edges under  `<roger-data-dir>/bulk/edges`. 
+Each csv with these folders has the following naming convention 
+`<entity-type>.csv-<group_index>-<uniqueness-index>`.
+When populating the CSV with values, the appropriate casting is done on the properties to normalize
+them to the data types defined in the **Schema** step. 
+
 ### Bulk Load
 Use the bulk loader to load Redisgraph logging statistics on each type of loaded object.
 ### Validate
@@ -497,7 +520,90 @@ python tranql_translator.py
 The Airflow interface shows the workflow:
 ![image](https://user-images.githubusercontent.com/306971/97787955-b968f680-1b8b-11eb-86cc-4d93842eafd3.png)
 
-Use the Trigger icon to run the workflow immediatley.
+Use the Trigger icon to run the workflow immediately.
+
+
+### Running Roger in Kubernetes
+
+#### 1. Setup Airflow
+   Roger supports installing airflow on kubernetes via [Helm](helm.sh).
+        
+   Create a pvc(roger-data-pvc) for storing roger Data with the following definition.
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: roger-data-pvc
+spec:
+  storageClassName: <storage-class>
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: <size>
+```
+
+Then run :
+
+```shell script
+kubectl -n <NAMESPACE> create -f pvc.yaml 
+```
+
+Navigate to `roger/bin` dir, and init airflow (adds [airflow helm repo](https://airflow-helm.github.io/charts))
+```shell script
+cd bin/
+export NAMESPACE=<your_namespace, default>
+export RELEASE_NAME=<install_name, airflow>
+./airk8s init
+```
+
+Start airflow 
+
+```shell script
+./airk8s start
+```
+
+To get to airflow web interface 
+```shell script
+./airk8s web
+```
+
+#### 2. Setup Redis 
+
+Initialize Redis bitnami  [helm chart](https://github.com/bitnami/charts/tree/master/bitnami/redis#redis).
+
+```shell script
+export NAMESPACE=<namespace, default>
+export RELEASE=redisgraph
+export REDIS_IMAGE=redislabs/redisgraph
+export REDIS_IMAGE_TAG=edge
+export CLUSTER_DOMAIN=cluster.local 
+export REDIS_WORKER_COUNT=1
+
+./roger init 
+```
+
+Start redis cluster
+
+```shell script
+./roger start
+```
+
+#### 3. Run Roger 
+
+The Airflow interface shows the workflow:
+![image](https://user-images.githubusercontent.com/45075777/104513185-403f4400-55bd-11eb-9142-cbfd7879504b.png)
+
+Press Trigger to get to the following page:
+![image](https://user-images.githubusercontent.com/45075777/104513451-b04dca00-55bd-11eb-837c-65d20d697fff.png)
+
+Enter the configuration parameters to get to Redis cluster installed in step 2:
+```json
+{"redisgraph": {"host": "<redis-master-service-name>", "port": 6379 , "graph" : "graph-name" }}
+```
+And run work flow. 
+
 
 
 
