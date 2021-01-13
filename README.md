@@ -78,10 +78,9 @@ Create bulk load CSV files conforming to the Redisgraph Bulk Loader's requiremen
 the assumed types . Currently redis bulk loader requires every column to have a value. 
 To address this issue, this step groups the entities being processed (edges/nodes)
 based on attributes that have values. Then these groups are written into separate csv files. Nodes 
-are written as csv(s) under `<roger-data-dir>/bulk/nodes` for nodes and  `<roger-data-dir>/bulk/edges`. 
+are written as csv(s) under `<roger-data-dir>/bulk/nodes` and edges under  `<roger-data-dir>/bulk/edges`. 
 Each csv with these folders has the following naming convention 
 `<entity-type>.csv-<group_index>-<uniqueness-index>`.
-
 When populating the CSV with values, the appropriate casting is done on the properties to normalize
 them to the data types defined in the **Schema** step. 
 
