@@ -520,7 +520,90 @@ python tranql_translator.py
 The Airflow interface shows the workflow:
 ![image](https://user-images.githubusercontent.com/306971/97787955-b968f680-1b8b-11eb-86cc-4d93842eafd3.png)
 
-Use the Trigger icon to run the workflow immediatley.
+Use the Trigger icon to run the workflow immediately.
+
+
+### Running Roger in Kubernetes
+
+#### 1. Setup Airflow
+   Roger supports installing airflow on kubernetes via [Helm](helm.sh).
+        
+   Create a pvc(roger-data-pvc) for storing roger Data with the following definition.
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: roger-data-pvc
+spec:
+  storageClassName: <storage-class>
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: <size>
+```
+
+Then run :
+
+```shell script
+kubectl -n <NAMESPACE> create -f pvc.yaml 
+```
+
+Navigate to `roger/bin` dir, and init airflow (adds [airflow helm repo](https://airflow-helm.github.io/charts))
+```shell script
+cd bin/
+export NAMESPACE=<your_namespace, default>
+export RELEASE_NAME=<install_name, airflow>
+./airk8s init
+```
+
+Start airflow 
+
+```shell script
+./airk8s start
+```
+
+To get to airflow web interface 
+```shell script
+./airk8s web
+```
+
+#### 2. Setup Redis 
+
+Initialize Redis bitnami  [helm chart](https://github.com/bitnami/charts/tree/master/bitnami/redis#redis).
+
+```shell script
+export NAMESPACE=<namespace, default>
+export RELEASE=redisgraph
+export REDIS_IMAGE=redislabs/redisgraph
+export REDIS_IMAGE_TAG=edge
+export CLUSTER_DOMAIN=cluster.local 
+export REDIS_WORKER_COUNT=1
+
+./roger init 
+```
+
+Start redis cluster
+
+```shell script
+./roger start
+```
+
+#### 3. Run Roger 
+
+The Airflow interface shows the workflow:
+![image](https://user-images.githubusercontent.com/45075777/104513185-403f4400-55bd-11eb-9142-cbfd7879504b.png)
+
+Press Trigger to get to the following page:
+![image](https://user-images.githubusercontent.com/45075777/104513451-b04dca00-55bd-11eb-837c-65d20d697fff.png)
+
+Enter the configuration parameters to get to Redis cluster installed in step 2:
+```json
+{"redisgraph": {"host": "<redis-master-service-name>", "port": 6379 , "graph" : "graph-name" }}
+```
+And run work flow. 
+
 
 
 
