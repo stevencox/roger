@@ -40,10 +40,6 @@ with DAG(
         """
         k8s_executor_config = {
             "KubernetesExecutor": {
-                "env": {
-                    "name": "test",
-                    "value": "val"
-                },
                 "volumes": [
                     {
                         "name": "test-data",
@@ -59,7 +55,14 @@ with DAG(
                         "name": "airflow-dags",
                         "mountPath": "/opt/airflow/dags"
                     }
-                ]
+                ],
+                "pod_override": {
+                  "containers": [
+                      {
+                          "env": [{"name": "XX", "value": "test"}]
+                      }
+                  ]
+                }
             }
         }
         return k8s_executor_config if at_k8s else None
