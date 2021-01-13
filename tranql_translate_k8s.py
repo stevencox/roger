@@ -54,7 +54,7 @@ with DAG(
                 ]
             }
         }
-        return k8s_executor_config if at_k8s else None
+        return k8s_executor_config  # if at_k8s else None
 
     def task_wrapper(python_callable, **kwargs):
         """
@@ -90,9 +90,25 @@ with DAG(
                 "python_callable": a_callable,
                 "to_string": True
             },
-            executor_config=get_executor_config (annotations={
-                "task_name" : name
-            }),
+            executor_config={
+            "KubernetesExecutor": {
+                "volumes": [
+                    {
+                        "name": "test-data",
+                        "emptyDir": {},
+                    },
+                ],
+                "volume_mounts": [
+                    {
+                        "mountPath": "/opt/test",
+                        "name": "test-data",
+                    },
+                ]
+            }
+        },
+            # get_executor_config (annotations={
+            #     "task_name" : name
+            # }),
             dag=dag,
             provide_context=True
         )
