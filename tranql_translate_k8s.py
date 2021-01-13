@@ -40,14 +40,7 @@ with DAG(
         """
         k8s_executor_config = {
             "KubernetesExecutor": {
-                "volume_mounts": [
-                    {
-                        "name": "airflow-dags",
-                        "readOnly": "true",
-                        "mountPath": "/opt/airflow/dags",
-                        "subPath": "dags"
-                    },
-                ]
+                "volume_mounts": []
             }
         }
         return k8s_executor_config if at_k8s else None
