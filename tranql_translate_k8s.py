@@ -59,7 +59,7 @@ with DAG(
                 "pod_override": {
                   "containers": [
                       {
-                          "env": [{"name": "XX", "value": "test"}]
+                          "spec": {"env": [{"name": "XX", "value": "test"}]}
                       }
                   ]
                 }
