@@ -1,10 +1,13 @@
+#!/usr/bin/env bash
 #set -x
 set -e
 
 namespace=${NAMESPACE:-scox}
-release=redisgraph
-image_repository=redislabs/redisgraph
-image_tag=edge
+release=${RELEASE:-redisgraph-test}
+image_repository=${REDIS_IMAGE:-redislabs/redisgraph}
+image_tag=${REDIS_IMAGE_TAG:-edge}
+cluster_domain=${CLUSTER_DOMAIN:-cluster.local}
+redis_worker_count=${REDIS_WORKER_COUNT:-1}
 
 # https://github.com/bitnami/charts/tree/master/bitnami/redis
 init () {
@@ -15,16 +18,17 @@ start () {
 	 --set image.repository=$image_repository \
 	 --set image.tag=$image_tag \
 	 --set redis.command="redis-server" \
-	 --set redis.args="--loadmodule /usr/lib/redis/modules/redisgraph.so" \
-	 --set master.command="redis-server --loadmodule /usr/lib/redis/modules/redisgraph.so" \
-	 --set slave.command="redis-server --loadmodule /usr/lib/redis/modules/redisgraph.so" \
-	 --namespace=$namespace \
-	 bitnami/redis
-}
-start () {
-    helm install $release \
-	 --set image.repository=$image_repository \
-	 --set image.tag=$image_tag \
+	 --set clusterDomain=$cluster_domain \
+	 --set cluster.slaveCount=$redis_worker_count \
+	 --set usePassword=false \
+	 --set master.command="" \
+	 --set slave.command="" \
+	 --set master.readinessProbe.enabled="false" \
+	 --set master.livenessProbe.enabled="false" \
+	 --set slave.readinessProbe.enabled="false" \
+	 --set slave.livenessProbe.enabled="false" \
+	 --set master.extraFlags[0]="--loadmodule /usr/lib/redis/modules/redisgraph.so" \
+	 --set slave.extraFlags[0]="--loadmodule /usr/lib/redis/modules/redisgraph.so" \
 	 --namespace=$namespace \
 	 bitnami/redis
 }

@@ -8,21 +8,21 @@ import shutil
 import time
 import yaml
 import sys
-import traceback
+# import traceback
 from biolink import model
 from collections import defaultdict
 from enum import Enum
 from io import StringIO
-from kgx.cli import redisgraph_upload
-from roger.roger_util import get_logger, get_config
+from roger.Config import get_default_config as get_config
+from roger.roger_util import get_logger
+from roger.components.data_conversion_utils import TypeConversionUtil
 from redisgraph_bulk_loader.bulk_insert import bulk_insert
 from roger.roger_db import RedisGraph
 from string import Template
 
 log = get_logger ()
 config = get_config ()
-data_root = config['data_root']
-    
+
 class SchemaType(Enum):
     """ High level semantic metatdata concepts.
     Categories are classes in an ontological model like Biolink.
@@ -132,6 +132,7 @@ class Util:
     def kgx_path (name):
         """ Form a KGX object path.
         :path name: Name of the KGX object. """
+        data_root = get_config()['data_root']
         return os.path.join (data_root, "kgx", name)
 
     @staticmethod
@@ -144,6 +145,7 @@ class Util:
     def merge_path (name):
         """ Form a merged KGX object path.
         :path name: Name of the merged KGX object. """
+        data_root = get_config()['data_root']
         return os.path.join (data_root, "merge", name)
 
     @staticmethod
@@ -156,12 +158,14 @@ class Util:
     def schema_path (name):
         """ Path to a schema object.
         :param name: Name of the object to get a path for. """
+        data_root = get_config()['data_root']
         return os.path.join (data_root, "schema", name)
 
     @staticmethod
     def bulk_path (name):
         """ Path to a bulk load object.
         :param name: Name of the object. """
+        data_root = get_config()['data_root']
         return os.path.join (data_root, "bulk", name)
 
     @staticmethod
@@ -204,9 +208,12 @@ class Util:
         
 class KGXModel:
     """ Abstractions for transforming Knowledge Graph Exchange formatted data. """
-    def __init__(self, biolink):
+    def __init__(self, biolink, config=None):
+        if not config:
+            config = get_config()
+        self.config = config
         self.biolink = biolink
-        
+
     def get (self, dataset_version = "v0.1"):
         """ Read metadata for edge and node files, then join them into whole KGX objects
         containing both nodes and edges. 
@@ -245,7 +252,7 @@ class KGXModel:
         if self.schema_up_to_date():
             log.info (f"schema is up to date.")
             return
-        
+
         predicate_schemas = defaultdict(lambda:None)
         category_schemas = defaultdict(lambda:None)        
         for subgraph in Util.kgx_objects ():
@@ -256,25 +263,26 @@ class KGXModel:
             """ Infer predicate schemas. """
             for edge in graph['edges']:
                 predicate = edge['edge_label']
-                if not predicate in predicate_schemas:
-                    predicate_schemas[predicate] = edge
-                    for k in edge.keys ():
-                        edge[k] = ''
-                else:
-                    for k in edge.keys ():
-                        if not k in predicate_schemas[predicate]:
-                            predicate_schemas[predicate][k] = ''
+                predicate_schemas[predicate] = predicate_schemas.get(predicate, {})
+                for k in edge.keys ():
+                    current_type = type(edge[k]).__name__
+                    if k not in predicate_schemas[predicate]:
+                        predicate_schemas[predicate][k] = current_type
+                    else:
+                        previous_type = predicate_schemas[predicate][k]
+                        predicate_schemas[predicate][k] = TypeConversionUtil.compare_types(previous_type, current_type)
             """ Infer node schemas. """
             for node in graph['nodes']:
                 node_type = self.biolink.get_leaf_class (node['category'])
-                if not node_type in category_schemas:
-                    category_schemas[node_type] = node
-                    for k in node.keys ():
-                        node[k] = ''
-                else:
-                    for k in node.keys ():
-                        if not k in category_schemas[node_type]:
-                            category_schemas[node_type][k] = ''
+                category_schemas[node_type] = category_schemas.get(node_type, {})
+                for k in node.keys ():
+                    current_type = type(node[k]).__name__
+                    if  k not in category_schemas[node_type]:
+                        category_schemas[node_type][k] = current_type
+                    else:
+                        previous_type = category_schemas[node_type][k]
+                        category_schemas[node_type][k] = TypeConversionUtil.compare_types(previous_type, current_type)
+
         """ Write node and predicate schemas. """
         self.write_schema (predicate_schemas, SchemaType.PREDICATE)
         self.write_schema (category_schemas, SchemaType.CATEGORY)
@@ -293,7 +301,7 @@ class KGXModel:
         :param schema_type: Type of schema to write. """
         file_name = Util.schema_path (f"{schema_type.value}-schema.json")
         log.info (f"writing schema: {file_name}")
-        dictionary = { k : self.format_keys(v.keys(), schema_type)  for k, v in schema.items () }
+        dictionary = { k : v for k, v in schema.items () }
         Util.write_object (dictionary, file_name)
         
     def merge_nodes (self, L, R):
@@ -383,9 +391,9 @@ class KGXModel:
     def load (self):
         """ Use KGX to load a data set into Redisgraph """
         input_format = "json"
-        uri = f"redis://{config['redisgraph']['host']}:{config['redisgraph']['ports']['http']}/"
-        username = config['redisgraph']['username']
-        password = config['redisgraph']['password']
+        uri = f"redis://{self.config['redisgraph']['host']}:{self.config['redisgraph']['port']}/"
+        username = self.config['redisgraph']['username']
+        password = self.config['redisgraph']['password']
         log.info (f"connecting to redisgraph: {uri}")
         for subgraph in glob.glob (f"{kgx_repo}/**.json"):
             redisgraph_upload(inputs=[ subgraph ],
@@ -423,8 +431,13 @@ class BiolinkModel:
 
 class BulkLoad:
     """ Tools for creating a Redisgraph bulk load dataset. """
-    def __init__(self, biolink):
+    def __init__(self, biolink, config=None):
         self.biolink = biolink
+        if not config:
+            config = get_config()
+        self.config = config
+        separator = self.config.get('bulk_loader',{}).get('separator', '|')
+        self.separator = chr(separator) if isinstance(separator, int) else separator
 
     def tables_up_to_date (self):
         return Util.is_up_to_date (
@@ -459,15 +472,13 @@ class BulkLoad:
                 index = self.biolink.get_leaf_class (node['category'])
                 categories[index].append (node)
             self.write_bulk (Util.bulk_path("nodes"), categories, categories_schema,
-                        state=state, f=subgraph)
+                        state=state, f=subgraph, is_relation=False)
 
             """ Write predicate data for bulk load. """
             predicates = defaultdict(lambda: [])
             for edge in graph['edges']:
                 predicates[edge['edge_label']].append (edge)
-                edge['src'] = edge.pop ('subject')
-                edge['dest'] = edge.pop ('object')
-            self.write_bulk (Util.bulk_path("edges"), predicates, predicates_schema)
+            self.write_bulk (Util.bulk_path("edges"), predicates, predicates_schema, is_relation=True)
             
     def cleanup (self, v):
         """ Filter problematic text. 
@@ -481,8 +492,72 @@ class BulkLoad:
                 v = v.replace ("[", "@").replace ("]", "@") #f" {v}"
             v = v.replace ("|","^")
         return v
-    
-    def write_bulk (self, bulk_path, obj_map, schema, state={}, f=None):
+
+    @staticmethod
+    def create_redis_schema_header(attributes: dict, is_relation=False):
+        """
+        Creates col headers for csv to be used by redis bulk loader by assigning redis types
+        :param attributes: dictionary of data labels with values as python type strings
+        :param separator: CSV separator
+        :return: list of attributes where each item  is attributeLabel:redisGraphDataType
+        """
+        redis_type_conversion_map = {
+            'str': 'STRING',
+            'float': 'FLOAT',  # Do we need to handle double
+            'int': 'INT',
+            'bool': 'BOOL',
+            'list': 'ARRAY'
+        }
+        col_headers = []
+        format_for_redis = lambda label, typ: f'{label}:{typ}'
+        for attribute, attribute_type in attributes.items():
+            col_headers.append(format_for_redis(attribute, redis_type_conversion_map[attribute_type]))
+        # Note this two fields are only important to bulk loader
+        # they will not be members of the graph
+        # https://github.com/RedisGraph/redisgraph-bulk-loader/tree/master#input-schemas
+        if is_relation:
+            col_headers.append('internal_start_id:START_ID')
+            col_headers.append('internal_end_id:END_ID')
+        # replace id:STRING with id:ID
+        col_headers.append('id:ID')
+        col_headers = list(filter(lambda x: x != 'id:STRING', col_headers))
+        return col_headers
+
+    @staticmethod
+    def group_items_by_attributes_set(objects: list, processed_object_ids: set):
+        """
+        Groups items into a dictionary where the keys are sets of attributes set for all
+        items accessed in that key.
+        Eg. { set(id,name,category): [{id:'xx0',name:'bbb', 'category':['type']}....
+        {id:'xx1', name:'bb2', category: ['type1']}] }
+        :param objects: list of nodes or edges
+        :param processed_object_ids: ids of object to skip since they are processed.
+        :return: dictionary grouping based on set attributes
+        """
+        clustered_by_set_values = {}
+        improper_keys = set()
+        value_set_test = lambda x: True if (x is not None and x != [] and x != '') else False
+        for obj in objects:
+            # redis bulk loader needs columns not to include ':'
+            # till backticks are implemented we should avoid these.
+            key_filter = lambda k:  ':' not in k
+            keys_with_values = frozenset([k for k in obj.keys() if value_set_test(obj[k]) and key_filter(k)])
+            for key in [k for k in obj.keys() if obj[k] and not key_filter(k)]:
+                improper_keys.add(key)
+            # group by attributes that have values. # Why?
+            # Redis bulk loader has one issue
+            # imagine we have {'name': 'x'} , {'name': 'y', 'is_metabolite': true}
+            # we have a common schema name:STRING,is_metabolite:BOOL
+            # values `x, ` and `y,true` but x not having value for is_metabolite is not handled
+            # well, redis bulk loader says we should give it default if we were to enforce schema
+            # but due to the nature of the data assigning defaults is very not an option.
+            # hence grouping data into several csv's might be the right way (?)
+            if obj['id'] not in processed_object_ids:
+                clustered_by_set_values[keys_with_values] = clustered_by_set_values.get(keys_with_values, [])
+                clustered_by_set_values[keys_with_values].append(obj)
+        return clustered_by_set_values, improper_keys
+
+    def write_bulk(self, bulk_path, obj_map, schema, state={}, is_relation=False, f=None):
         """ Write a bulk load group of objects.
         :param bulk_path: Path to the bulk loader object to write.
         :param obj_map: A map of biolink type to list of objects.
@@ -490,42 +565,92 @@ class BulkLoad:
         :param state: Track state of already written objects to avoid duplicates.
         """
         os.makedirs (bulk_path, exist_ok=True)
+        processed_objects_id = state.get('processed_id', set())
+        called_x_times = state.get('called_times', 0)
+        called_x_times += 1
         for key, objects in obj_map.items ():
-            out_file = f"{bulk_path}/{key}.csv"
             if len(objects) == 0:
                 continue
-            new_file = not os.path.exists (out_file)
             all_keys = schema[key]
-            with open (out_file, "a") as stream:
-                if new_file:
-                    log.info (f"  --creating {out_file}")
-                    stream.write ("|".join (all_keys))
-                    stream.write ("\n")
-                """ Make all objects conform to the schema. """
-                for obj in objects:
-                    for akey in all_keys:
-                        if not akey in obj:
-                            obj[akey] = ""
-                """ Write fields, skipping duplicate objects. """
-                for obj in objects:
-                    oid = str(obj['id'])
-                    if oid in state:
-                        continue
-                    state[oid] = oid
-                    values = [ self.cleanup(obj[k]) for k in all_keys if not 'smiles' in k ]
-                    clean = list(map(str, values))
-                    s = "|".join (clean)
-                    stream.write (s)
-                    stream.write ("\n")
+            """ Make all objects conform to the schema. """
+            clustered_by_set_values, improper_redis_keys = self.group_items_by_attributes_set(objects,
+                                                                                              processed_objects_id)
+
+            if len(improper_redis_keys):
+                log.warning(f"The following keys were skipped since they include conflicting `:`"
+                            f" that would cause errors while bulk loading to redis."
+                            f"{improper_redis_keys}")
+            for index, set_attributes in enumerate(clustered_by_set_values.keys()):
+                items = clustered_by_set_values[set_attributes]
+                # When parted files are saved let the file names be collected here
+                state['file_paths'] = state.get('file_paths', {})
+                state['file_paths'][key] = state['file_paths'].get(key, {})
+                out_file = state['file_paths'][key][set_attributes] = state['file_paths']\
+                    .get(key, {})\
+                    .get(set_attributes, '')
+                # When calling write bulk , lets say we have processed some
+                # chemicals from file 1 and we start processing file 2
+                # if we are using just index then we might (rather will) end up adding
+                # records to the wrong file so we need this to be unique as possible
+                # by adding called_x_times , if we already found out-file from state obj
+                # we are sure that the schemas match.
+                out_file = f"{bulk_path}/{key}.csv-{index}-{called_x_times}" if not out_file else out_file
+                state['file_paths'][key][set_attributes] = out_file  # store back file name
+                new_file = not os.path.exists(out_file)
+                keys_for_header = {x: all_keys[x] for x in all_keys if x in set_attributes}
+                redis_schema_header = self.create_redis_schema_header(keys_for_header, is_relation)
+                with open(out_file, "a") as stream:
+                    if new_file:
+                        state['file_paths'][key][set_attributes] = out_file
+                        log.info(f"  --creating {out_file}")
+                        stream.write(self.separator.join(redis_schema_header))
+                        stream.write("\n")
+                    else:
+                        log.info(f"  --appending to {out_file}")
+                    """ Write fields, skipping duplicate objects. """
+                    for obj in items:
+                        oid = str(obj['id'])
+                        if oid in processed_objects_id:
+                            continue
+                        processed_objects_id.add(oid)
+                        """ Add ID / START_ID / END_ID depending"""
+                        internal_id_fields = {
+                            'internal_id': obj['id']
+                        }
+                        if is_relation:
+                            internal_id_fields.update({
+                                'internal_start_id': obj['subject'],
+                                'internal_end_id': obj['object']
+                            })
+                        obj.update(internal_id_fields)
+                        values = []
+                        # uses redis schema header to preserve order when writing lines out.
+                        for column_name in redis_schema_header:
+                            # last key is the type
+                            obj_key = ':'.join(column_name.split(':')[:-1])
+                            value = obj[obj_key]
+
+                            if obj_key not in internal_id_fields:
+                                current_type = type(value).__name__
+                                expected_type = all_keys[obj_key]
+                                # cast it if it doesn't match type in schema keys i.e all_keys
+                                value = TypeConversionUtil.cast(obj[obj_key], all_keys[obj_key]) \
+                                    if expected_type != current_type else value
+
+                            values.append(str(value))
+                        s = self.separator.join(values)
+                        stream.write(s)
+                        stream.write("\n")
+        state['processed_id'] = processed_objects_id
+        state['called_times'] = called_x_times
 
     def insert (self):
-        redisgraph = config.get('redisgraph', {})
-        bulk_loader = config.get('bulk_loader', {})
-        nodes = sorted(glob.glob (Util.bulk_path ("nodes/**.csv")))
-        edges = sorted(glob.glob (Util.bulk_path ("edges/**.csv")))
+        redisgraph = self.config.get('redisgraph', {})
+        bulk_loader = self.config.get('bulk_loader', {})
+        nodes = sorted(glob.glob (Util.bulk_path ("nodes/**.csv*")))
+        edges = sorted(glob.glob (Util.bulk_path ("edges/**.csv*")))
         graph = redisgraph['graph']
-        log.info (f"bulk loading \n  nodes: {nodes} \n  edges: {edges}")
-        print (f"bulk loading \n  nodes: {nodes} \n  edges: {edges}")
+        log.info(f"bulk loading \n  nodes: {nodes} \n  edges: {edges}")
 
         try:
             log.info (f"deleting graph {graph} in preparation for bulk load.")
@@ -537,21 +662,26 @@ class BulkLoad:
         log.info (f"bulk loading graph: {graph}")        
         args = []
         if len(nodes) > 0:
-            args.extend (("-n " + " -n ".join (nodes)).split ())
+            args.extend(("-n " + " -n ".join(nodes)).split())
         if len(edges) > 0:
-            args.extend (("-r " + " -r ".join (edges)).split ())
-        args.extend ([ "--separator=|" ])
-        args.extend ([ redisgraph['graph'] ])
+            args.extend(("-r " + " -r ".join(edges)).split())
+        args.extend([f"--separator={self.separator}"])
+        args.extend([f"--host={redisgraph['host']}"])
+        args.extend([f"--port={redisgraph['port']}"])
+        args.extend([f"--password={redisgraph['password']}"])
+        args.extend(['--enforce-schema'])
+        args.extend([f"{redisgraph['graph']}"])
         """ standalone_mode=False tells click not to sys.exit() """
         bulk_insert (args, standalone_mode=False)
 
     def get_redisgraph (self, redisgraph):
         return RedisGraph (host=redisgraph['host'],
-                           port=redisgraph['ports']['http'],
+                           port=redisgraph['port'],
+                           password=redisgraph.get('password', ''),
                            graph=redisgraph['graph'])
     
     def validate (self):
-        redisgraph = config.get('redisgraph', {})
+        redisgraph = self.config.get('redisgraph', {})
         print (f"config:{json.dumps(redisgraph, indent=2)}")
         db = self.get_redisgraph (redisgraph)
         validation_queries = config.get('validation', {}).get('queries', [])
@@ -569,20 +699,24 @@ class BulkLoad:
 class Roger:
     """ Consolidate Roger functionality for a cleaner interface. """
 
-    def __init__(self, to_string=False):
+    def __init__(self, to_string=False, config=None):
         """ Initialize.
         :param to_string: Log messages to a string, available as self.log_stream.getvalue() 
         after execution completes.
         """
         import logging
+        self.has_string_handler = to_string
+        if not config:
+            config = get_config()
+        self.config = config
         if to_string:
             """ Add a stream handler to enable to_string. """
             self.log_stream = StringIO()
             self.string_handler = logging.StreamHandler (self.log_stream)
             log.addHandler (self.string_handler)
         self.biolink = BiolinkModel ()
-        self.kgx = KGXModel (self.biolink)
-        self.bulk = BulkLoad (self.biolink)
+        self.kgx = KGXModel (self.biolink, config=config)
+        self.bulk = BulkLoad (self.biolink, config=config)
 
     def __enter__(self):
         """ Implement Python's Context Manager interface. """
@@ -597,55 +731,56 @@ class Roger:
         """
         if exception_type or exception_value or traceback:
             log.error ("{} {} {}".format (exception_type, exception_value, traceback))
-        log.removeHandler (self.string_handler)
+        if self.has_string_handler:
+            log.removeHandler (self.string_handler)
         
 class RogerUtil:
     """ An interface abstracting Roger's inner workings to make it easier to
     incorporate into external tools like workflow engines. """
     @staticmethod
-    def get_kgx (to_string=False):
+    def get_kgx (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.kgx.get ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
     
     @staticmethod
-    def create_schema (to_string=False):
+    def create_schema (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.kgx.create_schema ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
     
     @staticmethod
-    def merge_nodes (to_string=False):
+    def merge_nodes (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.kgx.merge ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
     
     @staticmethod
-    def create_bulk_load (to_string=False):
+    def create_bulk_load (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.bulk.create ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
 
     @staticmethod
-    def bulk_load (to_string=False):
+    def bulk_load (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.bulk.insert ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
 
     @staticmethod
-    def validate (to_string=False):
+    def validate (to_string=False, config=None):
         output = None
-        with Roger (to_string) as roger:
+        with Roger (to_string, config=config) as roger:
             roger.bulk.validate ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
@@ -668,7 +803,9 @@ if __name__ == "__main__":
     kgx = KGXModel (biolink)
     bulk = BulkLoad (biolink)
     if args.data_root is not None:
-        data_root = get_config()['data_root'] = args.data_root
+        config = get_config()
+        data_root = args.data_root
+        config.update({'data_root': data_root})
         log.info (f"data root:{data_root}")
     if args.get_kgx:
         kgx.get (dataset_version=args.dataset_version)

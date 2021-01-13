@@ -3,8 +3,7 @@ redisgraph:
   password: ""
   host: localhost
   graph: test
-  ports:
-     http: 6379
+  port: 6379
 
 logging:
   level: DEBUG
@@ -15,7 +14,7 @@ base_data_uri: https://stars.renci.org/var/kgx_data
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:
-  separator: "|"
+  separator: 0x1E
   enforce_schema: False
   skip_invalid_nodes: False
   skip_invalid_edges: False
@@ -54,3 +53,26 @@ validation:
     query_by_type:
       name: Query by Type
       query: "MATCH (a:gene)-[e]-(b) WHERE 'chemical_substance' IN b.category RETURN count(distinct(a)), count(distinct(b))"
+    smiles_values:
+      name: Query Chemicals with smiles that look like arrays
+      query: "Match (a: chemical_substance { simple_smiles: '$var' }) RETURN a.id"
+      args:
+      - var: "[Os+6]"
+      - var: "[SiH2]"
+      - var: "[CH]"
+      - var: "[S-2]"
+      - var: "[Ti+4]"
+      - var: "[P-3]"
+      - var: "[Ca+2]"
+      - var: "[Au+3]"
+      - var: "[TeH2]"
+      - var: "[Pb]"
+      - var: "[B+]"
+      - var: "[AsH]"
+      - var: "[O-][I+2]([O-])[O-]"
+      - var: "[He+]"
+      - var: "[Mo+6]"
+      - var: "[N-]=[N+]=[N-]"
+      - var: "[Ag+]"
+      - var: "[Zn+2]"
+      - var: "[C-]#[O+]"
