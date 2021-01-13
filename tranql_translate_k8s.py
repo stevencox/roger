@@ -54,7 +54,7 @@ with DAG(
                 ]
             }
         }
-        return k8s_executor_config  # if at_k8s else None
+        return k8s_executor_config if at_k8s else None
 
     def task_wrapper(python_callable, **kwargs):
         """
@@ -90,31 +90,17 @@ with DAG(
                 "python_callable": a_callable,
                 "to_string": True
             },
-            executor_config={
-            "KubernetesExecutor": {
-                "volumes": [
-                    {
-                        "name": "test-data",
-                        "emptyDir": {},
-                    },
-                ],
-                "volume_mounts": [
-                    {
-                        "mountPath": "/opt/test",
-                        "name": "test-data",
-                    },
-                ]
-            }
-        },
-            # get_executor_config (annotations={
-            #     "task_name" : name
-            # }),
+            executor_config=get_executor_config (annotations={
+                "task_name" : name
+            }),
             dag=dag,
             provide_context=True
         )
 
     """ Build the workflow tasks. """
-    intro = BashOperator(task_id='Intro', bash_command='echo running tranql translator && exit 0')
+    intro = BashOperator(task_id='Intro',
+                         bash_command='echo running tranql translator && exit 0',
+                         executor_config= get_executor_config())
     get_kgx = create_python_task ("GetSource", RogerUtil.get_kgx)
     create_schema = create_python_task ("CreateSchema", RogerUtil.create_schema)
     merge_nodes = create_python_task ("MergeNodes", RogerUtil.merge_nodes)
