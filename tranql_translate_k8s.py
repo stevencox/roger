@@ -39,18 +39,17 @@ with DAG(
         :returns: Returns a KubernetesExecutor if K8s is configured and None otherwise.
         """
         k8s_executor_config = {
-            "pod_override": k8s.V1Pod(
-                spec=k8s.V1PodSpec(
-                    containers=[
-                        k8s.V1Container(
-                            name="base",
-                            image="renciorg/roger-executor:0.1",
-                            image_pull_policy="Always"
-                        )
-                    ]
-                )
-            ).to_dict(),
+            "KubernetesExecutor": {
+                "volume_mounts": [
+                    {
+                        "name": "airflow-dags",
+                        "readOnly": "true",
+                        "mountPath": "/opt/airflow/dags",
+                        "subPath": "dags"
+                    },
+                ]
             }
+        }
         return k8s_executor_config if at_k8s else None
 
     def task_wrapper(python_callable, **kwargs):
