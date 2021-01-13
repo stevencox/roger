@@ -22,8 +22,7 @@ from string import Template
 
 log = get_logger ()
 config = get_config ()
-data_root = config['data_root']
-    
+
 class SchemaType(Enum):
     """ High level semantic metatdata concepts.
     Categories are classes in an ontological model like Biolink.
@@ -133,6 +132,7 @@ class Util:
     def kgx_path (name):
         """ Form a KGX object path.
         :path name: Name of the KGX object. """
+        data_root = get_config()['data_root']
         return os.path.join (data_root, "kgx", name)
 
     @staticmethod
@@ -145,6 +145,7 @@ class Util:
     def merge_path (name):
         """ Form a merged KGX object path.
         :path name: Name of the merged KGX object. """
+        data_root = get_config()['data_root']
         return os.path.join (data_root, "merge", name)
 
     @staticmethod
@@ -157,12 +158,14 @@ class Util:
     def schema_path (name):
         """ Path to a schema object.
         :param name: Name of the object to get a path for. """
+        data_root = get_config()['data_root']
         return os.path.join (data_root, "schema", name)
 
     @staticmethod
     def bulk_path (name):
         """ Path to a bulk load object.
         :param name: Name of the object. """
+        data_root = get_config()['data_root']
         return os.path.join (data_root, "bulk", name)
 
     @staticmethod
