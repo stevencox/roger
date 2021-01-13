@@ -56,13 +56,6 @@ with DAG(
                         "mountPath": "/opt/airflow/dags"
                     }
                 ]
-            },
-            "pod_override": {
-                "containers": [
-                    {
-                        "spec": {"env": [{"name": "XX", "value": "test"}]}
-                    }
-                ]
             }
         }
         return k8s_executor_config if at_k8s else None
