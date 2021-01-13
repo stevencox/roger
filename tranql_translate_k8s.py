@@ -51,6 +51,10 @@ with DAG(
                         "mountPath": "/opt/test",
                         "name": "test-data",
                     },
+                    {
+                        "name": "airflow-dags",
+                        "mountPath": "/opt/airflow/dags"
+                    }
                 ]
             }
         }
