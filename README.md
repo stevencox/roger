@@ -59,8 +59,32 @@ Fetches KGX files according to a data version selecting the set of files to use.
 Merges nodes duplicated across files aggregating properties from all nodes
 ### Schema
 Identify and record the schema (properties) of every edge and node type.
+Schema records the type resolved for each property of a node/edge. The **Schema** step generates category 
+schema file for node schema and predicate schema for edges. In these files properties are collected and 
+scoped based on type of the edges and nodes found. For instances where properties do not have consistent data 
+type across a given scope, the following rule is used to resolve to final data type: 
+
+* If the property has fluctuating type among a boolean, a float or an Integer in the same scope, 
+it's final data type would be a string. 
+* If conflicting property is ever a string but never a list in the scope, it's final data type will be string.
+* If conflicting property is ever a list , it's final data type will be a list. 
+
+Using this approach attributes will be casted based on the resolution set here when loading to the graph database
+in subsequent steps. 
 ### Bulk Create
 Create bulk load CSV files conforming to the Redisgraph Bulk Loader's requirements.
+**Bulk create** uses the Schema  generated in **Schema** step to generate csv headers 
+([redis csv headers](https://github.com/RedisGraph/redisgraph-bulk-loader#input-schemas)) with
+the assumed types . Currently redis bulk loader requires every column to have a value. 
+To address this issue, this step groups the entities being processed (edges/nodes)
+based on attributes that have values. Then these groups are written into separate csv files. Nodes 
+are written as csv(s) under `<roger-data-dir>/bulk/nodes` for nodes and  `<roger-data-dir>/bulk/edges`. 
+Each csv with these folders has the following naming convention 
+`<entity-type>.csv-<group_index>-<uniqueness-index>`.
+
+When populating the CSV with values, the appropriate casting is done on the properties to normalize
+them to the data types defined in the **Schema** step. 
+
 ### Bulk Load
 Use the bulk loader to load Redisgraph logging statistics on each type of loaded object.
 ### Validate
