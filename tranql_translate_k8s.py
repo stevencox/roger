@@ -32,7 +32,7 @@ with DAG(
 
     """ Configure use of KubernetesExecutor. """
     at_k8s=True
-    
+
     def get_executor_config (annotations=None):
         """ Get an executor configuration.
         :param annotations: Annotations to attach to the executor.
@@ -55,14 +55,14 @@ with DAG(
                         "name": "airflow-dags",
                         "mountPath": "/opt/airflow/dags"
                     }
-                ],
-                "pod_override": {
-                  "containers": [
-                      {
-                          "spec": {"env": [{"name": "XX", "value": "test"}]}
-                      }
-                  ]
-                }
+                ]
+            },
+            "pod_override": {
+                "containers": [
+                    {
+                        "spec": {"env": [{"name": "XX", "value": "test"}]}
+                    }
+                ]
             }
         }
         return k8s_executor_config if at_k8s else None
