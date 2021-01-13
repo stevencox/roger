@@ -40,7 +40,18 @@ with DAG(
         """
         k8s_executor_config = {
             "KubernetesExecutor": {
-                "volume_mounts": []
+                "volumes": [
+                    {
+                        "name": "test-data",
+                        "emptyDir": {},
+                    },
+                ],
+                "volume_mounts": [
+                    {
+                        "mountPath": "/opt/test",
+                        "name": "test-data",
+                    },
+                ]
             }
         }
         return k8s_executor_config if at_k8s else None
