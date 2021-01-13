@@ -40,6 +40,10 @@ with DAG(
         """
         k8s_executor_config = {
             "KubernetesExecutor": {
+                "env": {
+                    "name": "test",
+                    "value": "val"
+                },
                 "volumes": [
                     {
                         "name": "test-data",
