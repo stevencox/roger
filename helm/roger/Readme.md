@@ -101,6 +101,7 @@ refer to this [Redis helm chart](https://github.com/bitnami/charts/tree/master/b
 To install `my-release` to kubernetes.
 
 ```shell script
+$ helm dependency update . 
 $ helm install my-release . 
 ```
 
