@@ -84,61 +84,21 @@ airflow:
       - git+https://github.com/RedisGraph/redisgraph-bulk-loader.git
       - flatten-dict
       - git+https://github.com/stevencox/kgx.git
-      ###################################
-      # Volumes
-      ###################################
 
-      ## EXAMPLE:
-      ##   extraVolumeMounts:
-      ##     - name: synchronised-dags
-      ##       mountPath: /opt/airflow/dags
-      ##
+    ###################################
+    # Volumes
+    ###################################
     extraVolumeMounts:
       - name: roger-data
         mountPath: /dags/roger/data
 
-      ## extra volumes for the web/scheduler/worker Pods
-      ##
-      ## EXAMPLE:
-      ##   extraVolumes:
-      ##     - name: synchronised-dags
-      ##       emptyDir: {}
-      ##
+    ## extra volumes for the web/scheduler/worker Pods
+
     extraVolumes:
       - name: roger-data
         emptyDir: {}
 
-  ###################################
-  # Airflow - Scheduler Configs
-  ###################################
-  scheduler:
 
-    ## custom airflow connections for the airflow scheduler
-    ##
-    #  connections:
-    #    - id: my_aws
-    #      type: aws
-    #      extra: |
-    #        {
-    #          "aws_access_key_id": "XXXXXXXXXXXXXXXXXXX",
-    #          "aws_secret_access_key": "XXXXXXXXXXXXXXX",
-    #          "region_name":"eu-central-1"
-    #        }
-
-    ## custom airflow variables for the airflow scheduler
-    ##
-    variables: |
-      { "environment": "dev" }
-
-    ## custom airflow pools for the airflow scheduler
-    ##
-    pools: |
-      {
-        "example": {
-          "description": "This is an example pool with 2 slots.",
-          "slots": 2
-        }
-      }
 
   ###################################
   # Airflow - WebUI Configs
@@ -147,7 +107,7 @@ airflow:
     ## configs for the Service of the web Pods
     ##
     service:
-      type: NodePort
+      type: ClusterIP
 
   ###################################
   # Airflow - Worker Configs
@@ -165,14 +125,11 @@ airflow:
     ##
     git:
       ## url of the git repository
-      ##
-      #url: "ssh://git@repo.example.com/my-airflow-dags.git"
-      #url: "ssh://git@github.com/stevencox/airflow.git"
       url: "ssh://git@github.com/helxplatform/roger.git"
 
       ## the branch/tag/sha1 which we clone
       ##
-      ref: redis-helm
+      ref: develop
 
       ## the name of a pre-created secret containing files for ~/.ssh/
       ##
@@ -201,21 +158,16 @@ airflow:
       repoHost: "github.com"
 
       ## the port of the git repo
-      ##
       ## NOTE:
       ## - this is ONLY REQUIRED for SSH git repos
       ##
       repoPort: 22
 
       ## configs for the git-sync container
-      ##
       gitSync:
         ## enable the git-sync sidecar container
-        ##
         enabled: true
-
         ## the git sync interval in seconds
-        ##
         refreshTime: 60
     installRequirments: true
 
