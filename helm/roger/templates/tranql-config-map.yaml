@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "roger.fullname" . }}-tranql-configmap
+  labels:
+    {{- include "roger.labels" . | nindent 4 }}
+data:
+  conf.yml: |
+    m: z
+  schema.yml: |
+    doc: |
+      Schema configuration for tranql
+    schema:
+      redis:
+        doc: |
+          Roger is a knowledge graph built by aggregeting several kgx formatted knowledge graphs from several sources.
+        url: "redis:"
+        redis: true
+        redis_connection_params:
+          host: {{ .Release.Name }}-redis-master
+          port: 6379
+          # SET USERNAME and PASSWORD
+          # via ROGER_USERNAME , ROGER_PASSWORD Env vars (i.e capitialize service name)
