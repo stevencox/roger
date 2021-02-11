@@ -11,6 +11,59 @@ This chart can be used to run Roger (graph curation pipeline) interfaced with
 
 This chart has Airflow and Redis added as dependencies. 
 
+### Pre-install Volumes and Secrets
+
+##### PVC
+
+
+This installation requires a PVC `roger-data-pvc` to store Roger pipeline data. Here is a template
+to create the PVC:
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: roger-data-pvc
+spec:
+  storageClassName:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
+```
+
+---
+
+#### Secrets:
+
+There are two secrets for airflow required for Git syncronization.
+
+This is used by `airflow.airflow.config.AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME`
+ ```yaml
+    kind: Secret
+    apiVersion: v1
+    metadata:
+      name: airflow-secrets
+    data:
+      gitSshKey: >-
+        ######
+    type: Opaque
+ ```
+
+This used by `airflow.dags.git.secret`
+
+```yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: airflow-git-keys 
+data:
+  id_rsa: <private-key-base64-encoded>    
+  id_rsa.pub: <public-key-base64-encoded>
+  known_hosts: <known-hosts>
+type: Opaque
+```
+
 ### Parameters
 
 #### Tranql
