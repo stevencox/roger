@@ -53,6 +53,11 @@ gitsecret () {
 	    --from-file=id_rsa.pub=$HOME/.ssh/id_rsa.pub \
 	    --from-file=known_hosts=$HOME/.ssh/known_hosts \
 	    --namespace $namespace
+
+	  kubectl create secret generic \
+	    airflow-secrets
+	    --from-file=gitSshKey=$HOME/.ssh/id_rsa \
+	    --namespace $namespace
 }
 
 $*

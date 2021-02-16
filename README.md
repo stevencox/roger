@@ -525,8 +525,11 @@ Use the Trigger icon to run the workflow immediately.
 
 ### Running Roger in Kubernetes
 
-#### 1. Setup Airflow
-   Roger supports installing airflow on kubernetes via [Helm](helm.sh).
+Roger supports installing on kubernetes via [Helm](helm.sh).
+
+### Prerequisites
+
+#### 1. Setup persistence volume
         
    Create a pvc(roger-data-pvc) for storing roger Data with the following definition.
 
@@ -550,47 +553,62 @@ Then run :
 kubectl -n <NAMESPACE> create -f pvc.yaml 
 ```
 
-Navigate to `roger/bin` dir, and init airflow (adds [airflow helm repo](https://airflow-helm.github.io/charts))
+#### 2. Create git ssh secrets:
+
+There are two secrets for airflow required for Git syncronization.
+
+This is used by `airflow.airflow.config.AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME`
+ ```yaml
+    kind: Secret
+    apiVersion: v1
+    metadata:
+      name: airflow-secrets
+    data:
+      gitSshKey: >-
+        <private-key-base64-encoded>
+    type: Opaque
+ ```
+
+This used by `airflow.dags.git.secret`
+
+```yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: airflow-git-keys 
+data:
+  id_rsa: <private-key-base64-encoded>    
+  id_rsa.pub: <public-key-base64-encoded>
+  known_hosts: <known-hosts>
+type: Opaque
+```
+
+### Installing 
+
+#### 1. Init helm dependencies 
+
+Navigate to `roger/bin` dir, and run `roger init`. This will initialize helm dependencies for  [airflow helm repo](https://airflow-helm.github.io/charts))
+and [redis helm repo](https://github.com/bitnami/charts/tree/master/bitnami/redis#redis).
 ```shell script
 cd bin/
 export NAMESPACE=<your_namespace, default>
 export RELEASE_NAME=<install_name, airflow>
-./airk8s init
-```
-
-Start airflow 
-
-```shell script
-./airk8s start
-```
-
-To get to airflow web interface 
-```shell script
-./airk8s web
-```
-
-#### 2. Setup Redis 
-
-Initialize Redis bitnami  [helm chart](https://github.com/bitnami/charts/tree/master/bitnami/redis#redis).
-
-```shell script
-export NAMESPACE=<namespace, default>
-export RELEASE=redisgraph
-export REDIS_IMAGE=redislabs/redisgraph
-export REDIS_IMAGE_TAG=edge
 export CLUSTER_DOMAIN=cluster.local 
-export REDIS_WORKER_COUNT=1
-
-./roger init 
+./roger init
 ```
 
-Start redis cluster
 
+#### 2. Installing  
+
+Run and flow the notes to access the servers.
 ```shell script
-./roger start
+./roger start 
 ```
 
-#### 3. Run Roger 
+#### 3. Run Roger workflow
+
+In the Notes a port forward command should be printed. Use that to 
+access airflow UI and run the following steps to run Roger workflow. 
 
 The Airflow interface shows the workflow:
 ![image](https://user-images.githubusercontent.com/45075777/104513185-403f4400-55bd-11eb-9142-cbfd7879504b.png)
@@ -605,7 +623,14 @@ Enter the configuration parameters to get to Redis cluster installed in step 2:
 And run work flow. 
 
 
+#### 4. Other Commands:
 
+To shutdown and remove the setup from k8s:
+```shell script
+./roger stop 
+```
 
-
-
+To restart the setup:
+```shell script
+./roger restart
+```

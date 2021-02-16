@@ -2,35 +2,22 @@
 #set -x
 set -e
 
-namespace=${NAMESPACE:-scox}
-release=${RELEASE:-redisgraph-test}
+namespace=${NAMESPACE:-}
+release=${RELEASE:-roger}
 image_repository=${REDIS_IMAGE:-redislabs/redisgraph}
-image_tag=${REDIS_IMAGE_TAG:-edge}
+image_tag=${REDIS_IMAGE_TAG:-2.2.13}
 cluster_domain=${CLUSTER_DOMAIN:-cluster.local}
 redis_worker_count=${REDIS_WORKER_COUNT:-1}
 
 # https://github.com/bitnami/charts/tree/master/bitnami/redis
 init () {
-    helm repo add bitnami https://charts.bitnami.com/bitnami
+    helm dependency update ../helm
 }
 start () {
-    helm install $release \
-	 --set image.repository=$image_repository \
-	 --set image.tag=$image_tag \
-	 --set redis.command="redis-server" \
-	 --set clusterDomain=$cluster_domain \
-	 --set cluster.slaveCount=$redis_worker_count \
-	 --set usePassword=false \
-	 --set master.command="" \
-	 --set slave.command="" \
-	 --set master.readinessProbe.enabled="false" \
-	 --set master.livenessProbe.enabled="false" \
-	 --set slave.readinessProbe.enabled="false" \
-	 --set slave.livenessProbe.enabled="false" \
-	 --set master.extraFlags[0]="--loadmodule /usr/lib/redis/modules/redisgraph.so" \
-	 --set slave.extraFlags[0]="--loadmodule /usr/lib/redis/modules/redisgraph.so" \
-	 --namespace=$namespace \
-	 bitnami/redis
+  helm upgrade --install $release \
+  --set redis.clusterDomain=$cluster_domain \
+  --namespace=$namespace \
+  ../helm
 }
 stop () {
     helm delete $release \
@@ -41,12 +28,10 @@ restart () {
     start
 }
 status () {
-    kubectl --namespace=$namespace get pods | grep $release
-    export REDIS_PASSWORD=$(kubectl get secret --namespace $namespace redisgraph -o jsonpath="{.data.redis-password}" | base64 --decode)
+  helm --namespace=$namespace status $release
 }
 client () {
-    #kubectl port-forward --namespace $namespace svc/redisgraph-master 6380:6379 &
-    redis-cli -h 127.0.0.1 -p 6380 -a $REDIS_PASSWORD
+    redis-cli -h 127.0.0.1 -p 6379 -a $REDIS_PASSWORD
 }
 #----------------------------
 
