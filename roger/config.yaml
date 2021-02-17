@@ -10,6 +10,7 @@ logging:
   format: '[%(name)s][%(filename)s][%(funcName)20s] %(levelname)s: %(message)s'
 
 data_root: roger/data
+dug_data_root: dug_helpers/dug_data/topmed_data
 base_data_uri: https://stars.renci.org/var/kgx_data
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
