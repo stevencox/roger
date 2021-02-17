@@ -63,13 +63,13 @@ airflow:
       # https://airflow.apache.org/docs/apache-airflow/1.10.12/configurations-ref.html#git-ssh-key-secret-name
       AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME: "airflow-secrets"
       # @TODO change this to master.
-      AIRFLOW__KUBERNETES__GIT_BRANCH: "develop"
+      AIRFLOW__KUBERNETES__GIT_BRANCH: "roger-dug"
       AIRFLOW__KUBERNETES__GIT_DAGS_FOLDER_MOUNT_POINT: "/opt/airflow/dags"
       AIRFLOW__KUBERNETES__GIT_SYNC_DEST: "roger"
       AIRFLOW__KUBERNETES__DAGS_VOLUME_SUBPATH: "roger"
       AIRFLOW__KUBERNETES__DELETE_WORKER_PODS: "FALSE"
-      AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY: "renciorg/roger-executor"
-      AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG: "0.26"
+      AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY: "muralikarthikk/airflow-task"
+      AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG: "0.0.5"
       # DAGS
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
 
@@ -84,6 +84,7 @@ airflow:
       - git+https://github.com/RedisGraph/redisgraph-bulk-loader.git
       - flatten-dict
       - git+https://github.com/stevencox/kgx.git
+      - dug-test==1.0.1
 
     ###################################
     # Volumes
@@ -129,7 +130,7 @@ airflow:
 
       ## the branch/tag/sha1 which we clone
       ##
-      ref: develop
+      ref: roger-dug
 
       ## the name of a pre-created secret containing files for ~/.ssh/
       ##
