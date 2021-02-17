@@ -130,7 +130,7 @@ airflow:
 
       ## the branch/tag/sha1 which we clone
       ##
-      ref: roger-dug
+      ref: roger-dug-extension
 
       ## the name of a pre-created secret containing files for ~/.ssh/
       ##
