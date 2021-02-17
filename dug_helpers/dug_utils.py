@@ -58,10 +58,11 @@ class Dug:
         return Dug.annotator.make_tagged_kg(variables, tags)
 
     def create_redis(self):
+        redis_params = self.config.get('redisgraph', {})
         redis_conn = StrictRedis(
-            host="redis-master",
-            port=6379,
-            password="redis"
+            host=redis_params['host'],
+            password=redis_params['password'],
+            port=redis_params['port']
         )
         return redis_conn
 
