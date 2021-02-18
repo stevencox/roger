@@ -1,6 +1,5 @@
 import json
 from dug.annotate import TOPMedStudyAnnotator
-from redis import StrictRedis
 from dug_helpers.dug_logger import get_logger
 from roger.Config import get_default_config as get_config
 import os
@@ -45,15 +44,6 @@ class Dug:
     def annotate(tags):
         log.info(f"Annotating")
         return Dug.annotator.annotate(tags)
-
-    def create_redis(self):
-        redis_params = self.config.get('redisgraph', {})
-        redis_conn = StrictRedis(
-            host=redis_params['host'],
-            password=redis_params['password'],
-            port=redis_params['port']
-        )
-        return redis_conn
 
     @staticmethod
     def make_tagged_kg(variables, tags):
@@ -230,7 +220,6 @@ class DugUtil:
                                                 '.'.join(os.path.basename(annotated_file).split('.')[:-1]) + '_kgx.json')
                 Util.write_object(graph, output_file_path)
                 log.info(f"Wrote {len(graph['nodes'])} nodes and {len(graph['edges'])} edges, to {output_file_path}.")
-
         log.info("Building the graph complete")
         return {"config": {"knowledge_graph": graph}}
 
