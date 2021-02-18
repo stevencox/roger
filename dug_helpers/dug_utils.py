@@ -5,6 +5,8 @@ from roger.Config import get_default_config as get_config
 import os
 from pathlib import Path
 from roger.core import Util
+from io import StringIO
+import logging
 
 log = get_logger()
 
@@ -12,9 +14,13 @@ log = get_logger()
 class Dug:
     annotator = None
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, to_string=True):
         if not config:
             self.config = get_config()
+        if to_string:
+            self.log_stream = StringIO()
+            self.string_handler = logging.StreamHandler
+            log.addHandler(self.string_handler)
         self.config = config
         if not Dug.annotator:
             annotation_config = self.config.get('annotation')
@@ -202,7 +208,9 @@ class DugUtil:
                     # Don't think we need these yet
                     # "annotated_tags": annotated_tags
                 }, output_file_path)
-        log.info(f"Load and Annotate complete")
+            log.info(f"Load and Annotate complete")
+            output_log = dug.log_stream.getvalue()
+        return output_log
 
     @staticmethod
     def make_kg_tagged(config=None):
@@ -220,8 +228,9 @@ class DugUtil:
                                                 '.'.join(os.path.basename(annotated_file).split('.')[:-1]) + '_kgx.json')
                 Util.write_object(graph, output_file_path)
                 log.info(f"Wrote {len(graph['nodes'])} nodes and {len(graph['edges'])} edges, to {output_file_path}.")
-        log.info("Building the graph complete")
-        return {"config": {"knowledge_graph": graph}}
+            log.info("Building the graph complete")
+            output_log = dug.log_stream.getvalue()
+        return output_log
 
 
 
