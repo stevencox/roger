@@ -26,6 +26,17 @@ bulk_loader:
   index: []
   full_text_index: []
 
+annotation:
+  annotator: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
+  normalizer: "https://nodenormalization-sri.renci.org/get_normalized_nodes?curie="
+  synonym_service: "https://onto.renci.org/synonyms/"
+  ontology_metadata: "https://api.monarchinitiative.org/api/ontology/term/"
+  # The following are neo4j params that would not be used
+  # need to remove them from annotator constructor.
+  db_url: ""
+  username: ""
+  password: ""
+
 validation:
   queries:
     count_nodes:

@@ -120,7 +120,7 @@ class Util:
         """ Write the file in the specified format. """
         if path.endswith (".yaml") or path.endswith (".yml"):
             with open(path, 'w') as outfile:
-                yaml.dump (obj, stream)
+                yaml.dump (obj, outfile)
         elif path.endswith (".json"):
             with open (path, "w") as stream:
                 json.dump (obj, stream, indent=2)

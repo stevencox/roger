@@ -1,5 +1,4 @@
 import os
-import json
 from pathlib import Path
 from airflow.operators.bash_operator import BashOperator
 from airflow.models import DAG
@@ -7,7 +6,6 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.utils.dates import days_ago
 from dug_helpers.dug_utils import DugUtil
-from dug_helpers.dug_logger import get_logger
 
 from roger.Config import get_default_config as get_config
 
@@ -16,7 +14,6 @@ default_args = {
     'start_date': days_ago(1)
 }
 
-import logging
 
 """ Build the workflow's tasks and DAG. """
 with DAG(
