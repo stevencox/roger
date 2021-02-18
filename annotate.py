@@ -49,13 +49,16 @@ with DAG(
         }
         return k8s_executor_config if at_k8s else None
 
-    def task_wrapper(a_callable, config, xcom, **kwargs):
+    def task_wrapper(a_callable, xcom, **kwargs):
         ti = kwargs['ti']
-        if xcom:
-            value = ti.xcom_pull(key=None, task_ids=ti.previous_ti)
-            config.update(value)
-        else:
-            config = {}
+        # This will let us control config from UI
+        # Trigger text box
+        dag_run = kwargs.get('dag_run')
+        config = get_config()
+        if dag_run:
+            dag_conf = dag_run.conf
+            del kwargs['dag_run']
+        config.update(dag_conf)
         return a_callable(config)
 
     def create_python_task(task_id, a_callable, xcom=False):
@@ -65,7 +68,6 @@ with DAG(
             python_callable=task_wrapper,
             op_kwargs={
                 "a_callable": a_callable,
-                "config": {},
                 "xcom": xcom
             },
             executor_config=get_executor_config(annotations={"task_name": task_id}, data_path=data_path),

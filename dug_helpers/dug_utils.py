@@ -190,13 +190,27 @@ class DugUtil:
                 """Loading step"""
                 variables, tags = dug.load_tagged(file)
                 """Annotating step"""
+                #dug.annotate modifies the tags in place. It adds
+                # a new attribute `identifiers` on each tag.
+                # That is used in make kg downstream to build associciations
+                # between Variable Tags and other Concepts.
+
                 annotated_tags = dug.annotate(tags)
+
+                # annotated_tags is an expanded format of the tags. Basically
+                # all the Nodes we have. This expansion makes it difficult to
+                # preserve the `edges` / `links` between the Tags and the concepts
+                # derived from their descriptions.
+                # Using the inplace modified `tags` makes sense for make_tagged_kg. since concepts are
+                # binned within each tag.
+
                 output_file_path = os.path.join(output_base_path,
                                                 '.'.join(os.path.basename(file).split('.')[:-1]) + '_annotated.json')
                 Util.write_object({
                     "variables": variables,
                     "original_tags": tags,
-                    "annotated_tags": annotated_tags
+                    # Don't think we need these yet
+                    # "annotated_tags": annotated_tags
                 }, output_file_path)
         log.info(f"Load and Annotate complete")
 
