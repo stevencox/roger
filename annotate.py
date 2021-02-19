@@ -101,5 +101,6 @@ with DAG(
     dug_load_topmed_variables = create_python_task("load_and_annotate", DugUtil.load_and_annotate, xcom=True)
     make_kg_tagged = create_python_task("make_kg_tagged", DugUtil.make_kg_tagged, xcom=False)
 
-    intro >> is_topmed_file_available >> dug_load_topmed_variables >> make_kg_tagged
+    # intro >> is_topmed_file_available >> \
+    dug_load_topmed_variables >> make_kg_tagged
 
