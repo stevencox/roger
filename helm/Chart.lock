@@ -1,0 +1,9 @@
+dependencies:
+- name: airflow
+  repository: https://airflow-helm.github.io/charts
+  version: 7.15.0
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 12.7.4
+digest: sha256:46d75a6fdcd58a5a57baf09a75918ec3264bfca30b7c065fb4e4f517980168df
+generated: "2021-02-08T12:17:50.2207903-05:00"

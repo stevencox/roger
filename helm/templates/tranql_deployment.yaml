@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "roger.fullname" . }}-tranql-frontend
+  labels:
+    {{- include "roger.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.tranql.replicas }}
+  selector:
+    matchLabels:
+      {{- include "roger.selectorLabels" . | nindent 6 }}
+      service-type: web-server
+  template:
+    metadata:
+      labels:
+        {{- include "roger.selectorLabels" . | nindent 8 }}
+        service-type: web-server
+    spec:
+      volumes:
+        - name: config-yaml
+          configMap:
+            name: {{ include "roger.fullname" . }}-tranql-configmap
+            defaultMode: 0777
+        - name: logs
+          emptyDir: {}
+      containers:
+      - name: {{ include "roger.fullname" . }}-tranql-web-container
+        image: {{ .Values.tranql.image }}:{{ .Values.tranql.imageTag }}
+        command:
+          - "/usr/local/bin/gunicorn"
+          - "--workers={{ .Values.tranql.gunicorn.workerCount }}"
+          - "--bind=0.0.0.0:{{ .Values.tranql.port }}"
+          - "--timeout={{ .Values.tranql.gunicorn.workerTimeout }}"
+          - "--access-logfile=$(ACCESS_LOG)"
+          - "--error-logfile=$(ERROR_LOG)"
+          - "--log-level=debug"
+          - "tranql.api:app"
+        ports:
+          - containerPort: {{ .Values.tranql.port }}
+            name: http
+        env:
+          - name: APP_PORT
+            value: {{ .Values.tranql.webPort | quote }}
+          - name: ACCESS_LOG
+            value: "/var/nfs/tranql-frontend_access_log"
+          - name: ERROR_LOG
+            value: "/var/nfs/tranql-frontend_error_log"
+        volumeMounts:
+          - name: logs
+            mountPath: /var/nfs
+          - name: config-yaml
+            subPath: conf.yml
+            mountPath: /tranql/tranql/conf.yml
+          - name: config-yaml
+            subPath: schema.yml
+            mountPath: /tranql/tranql/conf/schema.yaml
+      restartPolicy: Always
