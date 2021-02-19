@@ -32,7 +32,7 @@ class Dug:
             Dug.annotator = TOPMedStudyAnnotator(
                 config=annotation_config
             )
-        self.conn = self.create_redis()
+        # self.conn = self.create_redis()
 
     def __enter__(self):
         return self

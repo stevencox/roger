@@ -58,7 +58,7 @@ with DAG(
         if dag_run:
             dag_conf = dag_run.conf
             del kwargs['dag_run']
-        config.update(dag_conf)
+            config.update(dag_conf)
         return a_callable(config)
 
     def create_python_task(task_id, a_callable, xcom=False):
