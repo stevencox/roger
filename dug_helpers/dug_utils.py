@@ -159,9 +159,7 @@ class Dug:
 class DugUtil:
 
     @staticmethod
-    def get_multiple_file_path(relative_path, pattern):
-        home = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(home, '..', relative_path)
+    def get_multiple_file_path(file_path, pattern):
         data_path = Path(file_path)
         data_files = data_path.glob(pattern)
         files = [str(file) for file in data_files]
@@ -169,18 +167,24 @@ class DugUtil:
 
     @staticmethod
     def get_annotation_output_path(config):
-        output_base_path = os.path.join(config.get('dug_data_root'), 'output', 'annotations')
+        output_base_path = os.path.join(config.get('data_root'), 'dug', 'output', 'annotations')
         return output_base_path
 
     @staticmethod
     def get_kgx_output_path(config):
-        output_base_path = os.path.join(config.get('dug_data_root'), 'output', 'kgx')
+        output_base_path = os.path.join(config.get('data_root'),'dug', 'output', 'kgx')
         return output_base_path
+
+    @staticmethod
+    def get_topmed_files():
+        home = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(home, '..', 'dug_helpers/dug_data/topmed_data')
+        return DugUtil.get_multiple_file_path(file_path, 'topmed_*.csv')
 
     @staticmethod
     def load_and_annotate(config=None):
         with Dug(config) as dug:
-            topmed_files = DugUtil.get_multiple_file_path(config.get('dug_data_root'), 'topmed_*.csv')
+            topmed_files = DugUtil.get_topmed_files()
             output_base_path = DugUtil.get_annotation_output_path(config)
             for file in topmed_files:
                 """Loading step"""

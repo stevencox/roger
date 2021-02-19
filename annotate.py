@@ -56,19 +56,21 @@ with DAG(
         dag_run = kwargs.get('dag_run')
         config = get_config()
         if dag_run:
+            config.update({'data_root': kwargs.get('data_path')})
             dag_conf = dag_run.conf
             del kwargs['dag_run']
             config.update(dag_conf)
         return a_callable(config)
 
     def create_python_task(task_id, a_callable, xcom=False):
-        data_path = "/opt/dug/data"
+        data_path = "/opt/roger/data"
         return PythonOperator(
             task_id=task_id,
             python_callable=task_wrapper,
             op_kwargs={
                 "a_callable": a_callable,
-                "xcom": xcom
+                "xcom": xcom,
+                "data_path": data_path
             },
             executor_config=get_executor_config(annotations={"task_name": task_id}, data_path=data_path),
             dag=dag,
