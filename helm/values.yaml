@@ -63,7 +63,7 @@ airflow:
       # https://airflow.apache.org/docs/apache-airflow/1.10.12/configurations-ref.html#git-ssh-key-secret-name
       AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME: "airflow-secrets"
       # @TODO change this to master.
-      AIRFLOW__KUBERNETES__GIT_BRANCH: "roger-dug-extension"
+      AIRFLOW__KUBERNETES__GIT_BRANCH: "develop"
       AIRFLOW__KUBERNETES__GIT_DAGS_FOLDER_MOUNT_POINT: "/opt/airflow/dags"
       AIRFLOW__KUBERNETES__GIT_SYNC_DEST: "roger"
       AIRFLOW__KUBERNETES__DAGS_VOLUME_SUBPATH: "roger"
@@ -130,7 +130,7 @@ airflow:
 
       ## the branch/tag/sha1 which we clone
       ##
-      ref: roger-dug-extension
+      ref: develop
 
       ## the name of a pre-created secret containing files for ~/.ssh/
       ##
