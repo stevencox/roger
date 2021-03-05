@@ -23,6 +23,10 @@ class TypeConversionUtil:
         int.__name__: {
             'priority': 2,
             'constructor': lambda x: int(x)
+        },
+        type(None).__name__: {
+            'priority': 3,
+            'constructor': lambda x: '',
         }
     }
 

@@ -2,14 +2,14 @@ import argparse
 import glob
 import json
 import os
+import ntpath
 import redis
 import requests
 import shutil
+import sys
 import time
 import yaml
-import sys
-# import traceback
-from biolink import model
+from bmt import Toolkit
 from collections import defaultdict
 from enum import Enum
 from io import StringIO
@@ -34,7 +34,8 @@ class FileFormat(Enum):
     """ File formats this module knows about. """
     JSON = "json"
     YAML = "yaml"
-    
+
+# @TODO move this to shared file between dug , roger etc...
 class Util:
 
     @staticmethod
@@ -169,6 +170,59 @@ class Util:
         return os.path.join (data_root, "bulk", name)
 
     @staticmethod
+    def dug_kgx_path(name):
+        data_root = get_config()['data_root']
+        return os.path.join (data_root, "dug", "kgx",  name)
+
+    @staticmethod
+    def dug_annotation_path(name):
+        data_root = get_config()['data_root']
+        return os.path.join(data_root, "dug", "annotations", name)
+
+    @staticmethod
+    def dug_crawl_path(name):
+        data_root = get_config()['data_root']
+        return os.path.join(data_root, "dug", "crawl", name)
+
+    @staticmethod
+    def dug_kgx_objects():
+        """ A list of dug KGX objects. """
+        dug_kgx_pattern = Util.dug_kgx_path("**.json")
+        return sorted(glob.glob(dug_kgx_pattern))
+
+    @staticmethod
+    def dug_annotation_objects():
+        """ A list of dug annotation Objects. """
+        annotation_pattern = Util.dug_annotation_path("**.json")
+        return sorted(glob.glob(annotation_pattern))
+
+    @staticmethod
+    def dug_topmed_path(name):
+        """ Topmed source files"""
+        home = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(home, "..", "dug_helpers", "dug_data", "topmed_data", name)
+
+    @staticmethod
+    def dug_topmed_objects():
+        topmed_file_pattern = Util.dug_topmed_path("topmed_*.csv")
+        return sorted(glob.glob(topmed_file_pattern))
+
+    @staticmethod
+    def dug_dd_xml_path(name):
+        """ Topmed source files"""
+        home = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(home, "..", "dug_helpers", "dug_data", "dd_xml_data", name)
+
+    @staticmethod
+    def dug_dd_xml_objects():
+        topmed_file_pattern = Util.dug_dd_xml_path("*.xml")
+        return sorted(glob.glob(topmed_file_pattern))
+
+    @staticmethod
+    def copy_file_to_dir(file_location, dir_name):
+        return shutil.copy(file_location, dir_name)
+
+    @staticmethod
     def read_schema (schema_type: SchemaType):
         """ Read a schema object.
         :param schema_type: Schema type of the object to read. """
@@ -212,36 +266,51 @@ class KGXModel:
         if not config:
             config = get_config()
         self.config = config
-        self.biolink = biolink
+        self.biolink_version = self.config.get('kgx').get('biolink_model_version')
+        log.debug(f"Trying to get biolink version : {self.biolink_version}")
+        self.biolink = BiolinkModel(self.biolink_version)
 
-    def get (self, dataset_version = "v0.1"):
-        """ Read metadata for edge and node files, then join them into whole KGX objects
-        containing both nodes and edges. 
+    def get (self, dataset_version = "v1.0"):
+        """ Read metadata for KGX files and downloads them locally.
         :param dataset_version: Data version to operate on.
         """
         metadata = Util.read_relative_object ("metadata.yaml")
         for item in metadata['versions']:
             if item['version'] == dataset_version:
-                for edge_url in item['edgeFiles']:
+                log.info(f"Getting KGX file version {item['version']}")
+                for file_name in item['files']:
                     start = Util.current_time_in_millis ()
-                    edge_url = Util.get_uri (edge_url, "base_data_uri")
-                    node_url = edge_url.replace ("-edge-", "-node-")
-                    subgraph_basename = os.path.basename (edge_url.replace ("-edge", ""))
+                    file_url = Util.get_uri (file_name, "base_data_uri")
+                    subgraph_basename = os.path.basename (file_name)
                     subgraph_path = Util.kgx_path (subgraph_basename)
                     if os.path.exists (subgraph_path):
                         log.info (f"cached kgx: {subgraph_path}")
                         continue
-                    subgraph = {
-                        "edges" : Util.read_object (edge_url),
-                        "nodes" : Util.read_object (node_url)
-                    }
+                    subgraph = Util.read_object(file_url)
                     Util.write_object (subgraph, subgraph_path)
                     total_time = Util.current_time_in_millis () - start
-                
                     edges = len(subgraph['edges'])
                     nodes = len(subgraph['nodes'])
                     log.debug ("wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format (
                         Util.trunc(subgraph_path, 45), edges, nodes, total_time))
+        # Fetchs kgx generated from Dug Annotation workflow.
+        self.fetch_dug_kgx()
+
+    def fetch_dug_kgx(self):
+        """
+        Copies files from dug output dir to roger kgx dir.
+        :return:
+        """
+        dug_kgx_files = Util.dug_kgx_objects()
+        log.info(f"Coping dug KGX files to {Util.kgx_path('')}. Found {len(dug_kgx_files)} kgx files to copy.")
+        for file in dug_kgx_files:
+            file_name = ntpath.basename(file)
+            dest = Util.kgx_path(file_name)
+            Util.write_object({}, dest)
+            log.info(f"Copying from {file} to {dest}.")
+            Util.copy_file_to_dir(file, dest)
+        log.info("Done coping dug KGX files.")
+        return
 
     def create_schema (self):
         """
@@ -262,7 +331,7 @@ class KGXModel:
             graph = Util.read_object (subgraph)
             """ Infer predicate schemas. """
             for edge in graph['edges']:
-                predicate = edge['edge_label']
+                predicate = edge['predicate']
                 predicate_schemas[predicate] = predicate_schemas.get(predicate, {})
                 for k in edge.keys ():
                     current_type = type(edge[k]).__name__
@@ -272,7 +341,11 @@ class KGXModel:
                         previous_type = predicate_schemas[predicate][k]
                         predicate_schemas[predicate][k] = TypeConversionUtil.compare_types(previous_type, current_type)
             """ Infer node schemas. """
+            category_error_nodes = set()
             for node in graph['nodes']:
+                if not node['category']:
+                    category_error_nodes.add(node['id'])
+                    node['category'] = [BiolinkModel.root_type]
                 node_type = self.biolink.get_leaf_class (node['category'])
                 category_schemas[node_type] = category_schemas.get(node_type, {})
                 for k in node.keys ():
@@ -282,7 +355,11 @@ class KGXModel:
                     else:
                         previous_type = category_schemas[node_type][k]
                         category_schemas[node_type][k] = TypeConversionUtil.compare_types(previous_type, current_type)
-
+            if len(category_error_nodes):
+                log.warn(f"some nodes didn't have category assigned. KGX file has errors."
+                          f"Nodes {len(category_error_nodes)}."
+                          f"Showing first 10: {list(category_error_nodes)[:10]}."
+                          f"These will be treated as {BiolinkModel.root_type}.")
         """ Write node and predicate schemas. """
         self.write_schema (predicate_schemas, SchemaType.PREDICATE)
         self.write_schema (category_schemas, SchemaType.CATEGORY)
@@ -388,24 +465,14 @@ class KGXModel:
             k_list.insert (0, 'id')
         return k_list
 
-    def load (self):
-        """ Use KGX to load a data set into Redisgraph """
-        input_format = "json"
-        uri = f"redis://{self.config['redisgraph']['host']}:{self.config['redisgraph']['port']}/"
-        username = self.config['redisgraph']['username']
-        password = self.config['redisgraph']['password']
-        log.info (f"connecting to redisgraph: {uri}")
-        for subgraph in glob.glob (f"{kgx_repo}/**.json"):
-            redisgraph_upload(inputs=[ subgraph ],
-                              input_format=input_format,
-                              input_compression=None,
-                              uri=uri,
-                              username=username,
-                              password=password,
-                              node_filters=[],
-                              edge_filters=[])
 
 class BiolinkModel:
+    root_type = 'biolink:NamedThing'
+
+    def __init__(self, bl_version='1.5.0'):
+        self.bl_url = f'https://raw.githubusercontent.com/biolink/biolink-model/{bl_version}/biolink-model.yaml'
+        self.toolkit = Toolkit(self.bl_url)
+
     """ Programmatic model of Biolink. """
     def to_camel_case(self, snake_str):
         """ Convert a snake case string to camel case. """
@@ -423,11 +490,37 @@ class BiolinkModel:
                 return True
         return False
 
+    def find_biolink_leaves(self, biolink_concepts):
+        """
+        Given a list of biolink concepts, returns the leaves removing any parent concepts.
+        :param biolink_concepts: list of biolink concepts
+        :return: leave concepts.
+        """
+        ancestry_set = set()
+        all_mixins_in_tree = set()
+        all_concepts = set(biolink_concepts)
+        # Keep track of things like "MacromolecularMachine" in current datasets
+        # @TODO remove this and make nodes as errors
+        unknown_elements = set()
+        for x in all_concepts:
+            current_element = self.toolkit.get_element(x)
+            mixins = set()
+            if current_element:
+                if 'mixins' in current_element and len(current_element['mixins']):
+                    for m in current_element['mixins']:
+                        mixins.add(self.toolkit.get_element(m).class_uri)
+            else:
+                unknown_elements.add(x)
+            ancestors = set(self.toolkit.get_ancestors(x, reflexive=False, formatted=True))
+            ancestry_set = ancestry_set.union(ancestors)
+            all_mixins_in_tree = all_mixins_in_tree.union(mixins)
+        leaf_set = all_concepts - ancestry_set - all_mixins_in_tree - unknown_elements
+        return leaf_set
+
     def get_leaf_class (self, names):
         """ Return the leaf classes in the provided list of names. """
-        classes = [ self.get_class(self.to_camel_case(n)) for n in names ]
-        leaves = [ n for n in names if not self.is_derived (n, classes) ]
-        return leaves [0]
+        leaves = list(self.find_biolink_leaves(names))
+        return leaves[0]
 
 class BulkLoad:
     """ Tools for creating a Redisgraph bulk load dataset. """
@@ -468,16 +561,24 @@ class BulkLoad:
 
             """ Write node data for bulk load. """
             categories = defaultdict(lambda: [])
+            category_error_nodes = set()
             for node in graph['nodes']:
+                if not node['category']:
+                    category_error_nodes.add(node['id'])
+                    node['category'] = [BiolinkModel.root_type]
                 index = self.biolink.get_leaf_class (node['category'])
                 categories[index].append (node)
+            if len(category_error_nodes):
+                log.error(f"some nodes didn't have category assigned. KGX file has errors."
+                          f"Nodes {len(category_error_nodes)}. They will be typed {BiolinkModel.root_type}"
+                          f"Showing first 10: {list(category_error_nodes)[:10]}.")
             self.write_bulk (Util.bulk_path("nodes"), categories, categories_schema,
                         state=state, f=subgraph, is_relation=False)
 
             """ Write predicate data for bulk load. """
             predicates = defaultdict(lambda: [])
             for edge in graph['edges']:
-                predicates[edge['edge_label']].append (edge)
+                predicates[edge['predicate']].append (edge)
             self.write_bulk (Util.bulk_path("edges"), predicates, predicates_schema, is_relation=True)
             
     def cleanup (self, v):
@@ -594,12 +695,16 @@ class BulkLoad:
                 # records to the wrong file so we need this to be unique as possible
                 # by adding called_x_times , if we already found out-file from state obj
                 # we are sure that the schemas match.
-                out_file = f"{bulk_path}/{key}.csv-{index}-{called_x_times}" if not out_file else out_file
+
+                # biolink:<TYPE> is not valid name so we need to remove :
+                file_key = key.replace('biolink:', '')
+
+                out_file = f"{bulk_path}/{file_key}.csv-{index}-{called_x_times}" if not out_file else out_file
                 state['file_paths'][key][set_attributes] = out_file  # store back file name
                 new_file = not os.path.exists(out_file)
                 keys_for_header = {x: all_keys[x] for x in all_keys if x in set_attributes}
                 redis_schema_header = self.create_redis_schema_header(keys_for_header, is_relation)
-                with open(out_file, "a") as stream:
+                with open(out_file, "a", encoding='utf-8') as stream:
                     if new_file:
                         state['file_paths'][key][set_attributes] = out_file
                         log.info(f"  --creating {out_file}")
@@ -662,9 +767,15 @@ class BulkLoad:
         log.info (f"bulk loading graph: {graph}")        
         args = []
         if len(nodes) > 0:
-            args.extend(("-n " + " -n ".join(nodes)).split())
+            bulk_path_root = Util.bulk_path('nodes') + os.path.sep
+            nodes_with_type = [ f"biolink:{ x.replace(bulk_path_root, '').split('.')[0]} {x}"
+                                for x in nodes ]
+            args.extend(("-N " + " -N ".join(nodes_with_type)).split())
         if len(edges) > 0:
-            args.extend(("-r " + " -r ".join(edges)).split())
+            bulk_path_root = Util.bulk_path('edges') + os.path.sep
+            edges_with_type = [ f"biolink:{x.replace(bulk_path_root, '').strip(os.path.sep).split('.')[0]} {x}"
+                               for x in edges]
+            args.extend(("-R " + " -R ".join(edges_with_type)).split())
         args.extend([f"--separator={self.separator}"])
         args.extend([f"--host={redisgraph['host']}"])
         args.extend([f"--port={redisgraph['port']}"])
@@ -740,6 +851,7 @@ class RogerUtil:
     @staticmethod
     def get_kgx (to_string=False, config=None):
         output = None
+        log.debug("Getting KGX method called.")
         with Roger (to_string, config=config) as roger:
             roger.kgx.get ()
             output = roger.log_stream.getvalue () if to_string else None
@@ -784,11 +896,11 @@ class RogerUtil:
             roger.bulk.validate ()
             output = roger.log_stream.getvalue () if to_string else None
         return output
-    
+
 if __name__ == "__main__":
     """ Roger CLI. """
     parser = argparse.ArgumentParser(description='Roger')
-    parser.add_argument('-v', '--dataset-version', help="Dataset version.", default="v0.1")
+    parser.add_argument('-v', '--dataset-version', help="Dataset version.", default="v1.0")
     parser.add_argument('-d', '--data-root', help="Root of data hierarchy", default=None)
     parser.add_argument('-g', '--get-kgx', help="Get KGX objects", action='store_true')
     parser.add_argument('-l', '--load-kgx', help="Load via KGX", action='store_true')

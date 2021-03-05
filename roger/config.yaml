@@ -9,9 +9,11 @@ logging:
   level: DEBUG
   format: '[%(name)s][%(filename)s][%(funcName)20s] %(levelname)s: %(message)s'
 
-data_root: roger/data
+data_root: /opt/roger/data
 dug_data_root: dug_helpers/dug_data/topmed_data
-base_data_uri: https://stars.renci.org/var/kgx_data
+base_data_uri: https://stars.renci.org/var/kgx_data/trapi-1.0/
+kgx:
+  biolink_model_version: 1.5.0
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:
@@ -36,6 +38,32 @@ annotation:
   db_url: ""
   username: ""
   password: ""
+
+indexing:
+  variables_index: "variables_index"
+  concepts_index: "concepts_index"
+  kg_index: "kg_index"
+  tranql_min_score: 0.2
+  excluded_identifiers:
+    - "CHEBI:17336"
+  queries:
+    "disease": ["disease", "phenotypic_feature"]
+    "pheno": ["phenotypic_feature", "disease"]
+    "anat": ["disease", "anatomical_entity"]
+    "chem_to_disease": ["chemical_substance", "disease"]
+    "phen_to_anat": ["phenotypic_feature", "anatomical_entity"]
+    "anat_to_disease": ["anatomical_entity", "disease"]
+    "anat_to_pheno": ["anatomical_entity", "phenotypic_feature"]
+  tranql_endpoint: "http://localhost:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
+
+elastic_search:
+  host: localhost
+  username: elastic
+  # temporary
+  password: ""
+  nboost_host: ""
+
+
 
 validation:
   queries:

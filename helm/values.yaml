@@ -1,7 +1,7 @@
 redis:
   image:
     repository: redislabs/redisgraph
-    tag: 2.2.13
+    tag: 2.4.1
   redis:
     command: "redis-server"
   clusterDomain: "blackbalsam-cluster"
@@ -42,8 +42,8 @@ airflow:
     ## the airflow executor type to use
     ##
     image:
-      repository: renciorg/apache-airflow-1.10.14-python-3.8-git
-      tag: latest
+      repository: renciorg/airflow-task
+      tag: "0.0.8"
     #  executor: CeleryExecutor
     executor: KubernetesExecutor
 
@@ -59,32 +59,23 @@ airflow:
       AIRFLOW__API__AUTH_BACKEND: "airflow.api.auth.backend.deny_all"
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "False"
       AIRFLOW__WEBSERVER__RBAC: "False"
-      AIRFLOW__KUBERNETES__GIT_REPO: "ssh://git@github.com/helxplatform/roger.git"
+      AIRFLOW__KUBERNETES__GIT_REPO: "https://git@github.com/helxplatform/roger.git"
       # https://airflow.apache.org/docs/apache-airflow/1.10.12/configurations-ref.html#git-ssh-key-secret-name
-      AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME: "airflow-secrets"
+#      AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME: "airflow-secrets"
       # @TODO change this to master.
       AIRFLOW__KUBERNETES__GIT_BRANCH: "develop"
       AIRFLOW__KUBERNETES__GIT_DAGS_FOLDER_MOUNT_POINT: "/opt/airflow/dags"
       AIRFLOW__KUBERNETES__GIT_SYNC_DEST: "roger"
       AIRFLOW__KUBERNETES__DAGS_VOLUME_SUBPATH: "roger"
       AIRFLOW__KUBERNETES__DELETE_WORKER_PODS: "FALSE"
-      AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY: "heliumdatastage/airflow-task"
-      AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG: "0.0.5"
+      # @TODO change to helxplatform docker repo
+      AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY: "renciorg/airflow-task"
+      AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG: "0.0.8"
       # DAGS
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
 
       ## Disable noisy "Handling signal: ttou" Gunicorn log messages
       GUNICORN_CMD_ARGS: "--log-level WARNING"
-
-    extraPipPackages:
-      - Babel==2.8.0
-      - biolink-model==1.2.5
-      - biolinkml==1.5.8
-      - redisgraph==2.1.5
-      - git+https://github.com/RedisGraph/redisgraph-bulk-loader.git
-      - flatten-dict
-      - git+https://github.com/stevencox/kgx.git
-      - dug-test==1.0.1
 
     ###################################
     # Volumes
@@ -116,7 +107,7 @@ airflow:
   workers:
     ## the number of workers Pods to run
     ##
-    replicas: 1
+    replicas: 0
 
   ###################################
   # Airflow - DAGs Configs
@@ -126,27 +117,11 @@ airflow:
     ##
     git:
       ## url of the git repository
-      url: "ssh://git@github.com/helxplatform/roger.git"
+      url: "https://git@github.com/helxplatform/roger.git"
 
       ## the branch/tag/sha1 which we clone
       ##
       ref: develop
-
-      ## the name of a pre-created secret containing files for ~/.ssh/
-      ##
-      ## NOTE:
-      ## - this is ONLY RELEVANT for SSH git repos
-      ## - the secret commonly includes files: id_rsa, id_rsa.pub, known_hosts
-      ## - known_hosts is NOT NEEDED if `git.sshKeyscan` is true
-      ##
-      secret: airflow-git-keys
-
-      ## the name of the private key file in your `git.secret`
-      ##
-      ## NOTE:
-      ## - this is ONLY RELEVANT for PRIVATE SSH git repos
-      ##
-      privateKeyName: id_rsa
 
       ## the host name of the git repo
       ##
@@ -162,7 +137,6 @@ airflow:
       ## NOTE:
       ## - this is ONLY REQUIRED for SSH git repos
       ##
-      repoPort: 22
 
       ## configs for the git-sync container
       gitSync:

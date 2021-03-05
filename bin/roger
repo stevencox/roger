@@ -8,6 +8,7 @@ image_repository=${REDIS_IMAGE:-redislabs/redisgraph}
 image_tag=${REDIS_IMAGE_TAG:-2.2.13}
 cluster_domain=${CLUSTER_DOMAIN:-cluster.local}
 redis_worker_count=${REDIS_WORKER_COUNT:-1}
+branch=${WORKING_GIT_BRANCH:-develop}
 
 # https://github.com/bitnami/charts/tree/master/bitnami/redis
 init () {
@@ -16,6 +17,8 @@ init () {
 start () {
   helm upgrade --install $release \
   --set redis.clusterDomain=$cluster_domain \
+  --set airflow.airflow.config.AIRFLOW__KUBERNETES__GIT_BRANCH=$branch \
+  --set airflow.dags.git.ref=$branch \
   --namespace=$namespace \
   ../helm
 }

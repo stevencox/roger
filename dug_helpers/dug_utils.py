@@ -1,27 +1,32 @@
 import json
 from dug.annotate import TOPMedStudyAnnotator
+from dug.core import Search
 from dug_helpers.dug_logger import get_logger
 from roger.Config import get_default_config as get_config
 import os
 from pathlib import Path
 from roger.core import Util
 from io import StringIO
+import hashlib
 import logging
+import dug.tranql as tql
 
 log = get_logger()
 
 
 class Dug:
     annotator = None
+    search_obj = None
+    config = None
 
     def __init__(self, config=None, to_string=True):
         if not config:
-            self.config = get_config()
+            Dug.config = get_config()
         if to_string:
             self.log_stream = StringIO()
             self.string_handler = logging.StreamHandler (self.log_stream)
             log.addHandler(self.string_handler)
-        self.config = config
+        Dug.config = config
         if not Dug.annotator:
             annotation_config = self.config.get('annotation')
             annotation_config.update({
@@ -32,7 +37,15 @@ class Dug:
             Dug.annotator = TOPMedStudyAnnotator(
                 config=annotation_config
             )
-        # self.conn = self.create_redis()
+        if not Dug.search_obj:
+            # Dug search expects these to be set as os envrion
+            # Elastic config
+            elastic_conf = config.get("elastic_search")
+            os.environ['ELASTIC_API_HOST']  =  elastic_conf.get("host")
+            os.environ['ELASTIC_USERNAME'] =  elastic_conf.get("username")
+            os.environ['ELASTIC_PASSWORD'] = elastic_conf.get("password")
+            os.environ['NBOOST_API_HOST'] = elastic_conf.get("nboost_host")
+            Dug.search_obj = Search(os.environ['ELASTIC_API_HOST'])
 
     def __enter__(self):
         return self
@@ -47,9 +60,115 @@ class Dug:
         return Dug.annotator.load_tagged_variables(file)
 
     @staticmethod
+    def load_dd_xml(file):
+        log.info(f"Loading DD xml file --> {file}")
+        return Dug.annotator.load_data_dictionary(file)
+
+    @staticmethod
     def annotate(tags):
         log.info(f"Annotating")
         return Dug.annotator.annotate(tags)
+
+    @staticmethod
+    def make_edge (subj,
+                   obj,
+                   predicate = 'biolink:association',
+                   predicate_label= 'association',
+                   relation = 'biolink:association',
+                   relation_label = 'association'
+    ):
+        """
+        Create an edge between two nodes.
+
+        :param subj: The identifier of the subject.
+        :param pred: The predicate linking the subject and object.
+        :param obj: The object of the relation.
+        :param predicate: Biolink compatible edge type.
+        :param predicate_label: Edge label.
+        :param relation: Ontological edge type.
+        :param relation_label: Ontological edge type label.
+        :returns: Returns and edge.
+        """
+        edge_id = hashlib.md5(f'{subj}{predicate}{obj}'.encode('utf-8')).hexdigest()
+        return {
+            "subject"     : subj,
+            "predicate"   : predicate,
+            "predicate_label": predicate_label,
+            "id": edge_id,
+            "relation"  :  relation,
+            "relation_label": relation_label,
+            "object"      : obj,
+            "provided_by" : "renci.bdc.semanticsearch.annotator"
+        }
+
+    @staticmethod
+    def convert_to_kgx_json(annotations):
+        """
+        Given an annotated and normalized set of study variables,
+        generate a KGX compliant graph given the normalized annotations.
+        Write that grpah to a graph database.
+        See BioLink Model for category descriptions. https://biolink.github.io/biolink-model/notes.html
+        """
+        graph = {
+            "nodes": [],
+            "edges": []
+        }
+        edges = graph['edges']
+        nodes = graph['nodes']
+
+        for index, variable in enumerate(annotations):
+            study_id = variable['collection_id']
+            if index == 0:
+                """ assumes one study in this set. """
+                nodes.append({
+                    "id": study_id,
+                    "category": ["biolink:ClinicalTrial"]
+                })
+
+            """ connect the study and the variable. """
+            edges.append(Dug.make_edge(
+                subj=variable['element_id'],
+                relation_label='part of',
+                relation='BFO:0000050',
+                obj=study_id,
+                predicate='biolink:part_of',
+                predicate_label='part of'))
+            edges.append(Dug.make_edge(
+                subj=study_id,
+                relation_label='has part',
+                relation="BFO:0000051",
+                obj=variable['element_id'],
+                predicate='biolink:has_part',
+                predicate_label='has part'))
+
+            """ a node for the variable. """
+            nodes.append({
+                "id": variable['element_id'],
+                "name": variable['element_name'],
+                "description": variable['element_desc'],
+                "category": ["biolink:ClinicalModifier"]
+            })
+            for identifier, metadata in variable['identifiers'].items():
+                edges.append(Dug.make_edge(
+                    subj=variable['element_id'],
+                    relation='OBAN:association',
+                    obj=identifier,
+                    relation_label='association',
+                    predicate='biolink:Association',
+                    predicate_label='association'))
+                edges.append(Dug.make_edge(
+                    subj=identifier,
+                    relation='OBAN:association',
+                    obj=variable['element_id'],
+                    relation_label='association',
+                    predicate='biolink:Association',
+                    predicate_label='association'))
+                nodes.append({
+                    "id": identifier,
+                    "name": metadata['label'],
+                    "category": metadata['type']
+                })
+        return graph
 
     @staticmethod
     def make_tagged_kg(variables, tags):
@@ -84,23 +203,18 @@ class Dug:
             })
             """ Link ontology identifiers we've found for this tag via nlp. """
             for identifier, metadata in tag['identifiers'].items():
+                node_types = list(metadata['type']) if isinstance(metadata['type'], str) else metadata['type']
                 nodes.append({
                     "id": identifier,
                     "name": metadata['label'],
-                    "category": metadata['type']
+                    "category": node_types
                 })
-                edges.append(Dug.annotator.make_edge(
+                edges.append(Dug.make_edge(
                     subj=tag_id,
-                    pred="OBAN:association",
-                    obj=identifier,
-                    edge_label='biolink:association',
-                    category=["biolink:association"]))
-                edges.append(Dug.annotator.make_edge(
+                    obj=identifier))
+                edges.append(Dug.make_edge(
                     subj=identifier,
-                    pred="OBAN:association",
-                    obj=tag_id,
-                    edge_label='biolink:association',
-                    category=["biolink:association"]))
+                    obj=tag_id))
 
         """ Create nodes and edges to model variables, studies, and their
         relationships to tags. """
@@ -127,70 +241,86 @@ class Dug:
                 "category": ["biolink:ClinicalModifier"]
             })
             """ Link to its study.  """
-            edges.append(Dug.annotator.make_edge(
+            edges.append(Dug.make_edge(
                 subj=variable_id,
-                edge_label='biolink:part_of',
-                pred="BFO:0000050",
-                obj=study_id,
-                category=['biolink:part_of']))
-            edges.append(Dug.annotator.make_edge(
+                predicate='biolink:part_of',
+                predicate_label='part of',
+                relation='BFO:0000050',
+                relation_label='part of',
+                obj=study_id))
+            edges.append(Dug.make_edge(
                 subj=study_id,
-                edge_label='biolink:has_part',
-                pred="BFO:0000051",
-                obj=variable_id,
-                category=['biolink:has_part']))
+                predicate='biolink:has_part',
+                predicate_label='has part',
+                relation='BFO:0000051',
+                relation_label='part of',
+                obj=variable_id))
 
             """ Link to its tag. """
-            edges.append(Dug.annotator.make_edge(
+            edges.append(Dug.make_edge(
                 subj=variable_id,
-                edge_label='biolink:part_of',
-                pred="BFO:0000050",
-                obj=tag_id,
-                category=['biolink:part_of']))
-            edges.append(Dug.annotator.make_edge(
+                predicate='biolink:part_of',
+                predicate_label='part of',
+                relation='BFO:0000050',
+                relation_label='part of',
+                obj=tag_id))
+            edges.append(Dug.make_edge(
                 subj=tag_id,
-                edge_label='biolink:has_part',
-                pred="BFO:0000051",
-                obj=variable_id,
-                category=['biolink:has_part']))
+                predicate='biolink:has_part',
+                predicate_label='has part',
+                relation='BFO:0000051',
+                relation_label='has part',
+                obj=variable_id))
         return graph
 
-
-class DugUtil:
+    @staticmethod
+    def index_variables(variables):
+        Dug.search_obj.index_variables(variables, "variables_index")
 
     @staticmethod
-    def get_multiple_file_path(file_path, pattern):
-        data_path = Path(file_path)
-        data_files = data_path.glob(pattern)
-        files = [str(file) for file in data_files]
-        return files
+    def crawl_concepts(concepts, crawl_dir):
+        # This needs to be redisgraph.graphName.
+        index_config = Dug.config.get("indexing")
+        tranql_url = index_config["tranql_endpoint"]
+        graph_name = Dug.config["redisgraph"]["graph"]
+        source = f"redis:{graph_name}"
+        queries_config = index_config["queries"]
+        tranql_queries = {
+            key: tql.QueryFactory(queries_config[key], source)
+            for key in queries_config
+        }
+
+        Dug.search_obj.crawlspace = crawl_dir
+        Dug.search_obj.crawl(
+            concepts=concepts,
+            concept_index=index_config["concepts_index"],
+            kg_index=index_config["kg_index"],
+            queries=tranql_queries,
+            min_score=index_config["tranql_min_score"],
+            include_node_keys=["id", "name", "synonyms"],
+            include_edge_keys=[],
+            query_exclude_identifiers=index_config["excluded_identifiers"],
+            tranql_endpoint=tranql_url
+        )
+
+
+class DugUtil():
 
     @staticmethod
-    def get_annotation_output_path(config):
-        output_base_path = os.path.join(config.get('data_root'), 'dug', 'output', 'annotations')
-        return output_base_path
+    def make_output_file_path(base, file):
+        return os.path.join(base, '.'.join(os.path.basename(file).split('.')[:-1]) + '_annotated.json')
 
     @staticmethod
-    def get_kgx_output_path(config):
-        output_base_path = os.path.join(config.get('data_root'),'dug', 'output', 'kgx')
-        return output_base_path
-
-    @staticmethod
-    def get_topmed_files():
-        home = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(home, '..', 'dug_helpers/dug_data/topmed_data')
-        return DugUtil.get_multiple_file_path(file_path, 'topmed_*.csv')
-
-    @staticmethod
-    def load_and_annotate(config=None):
+    def load_and_annotate(config=None, to_string=False):
         with Dug(config) as dug:
-            topmed_files = DugUtil.get_topmed_files()
-            output_base_path = DugUtil.get_annotation_output_path(config)
+            topmed_files = Util.dug_topmed_objects()
+            dd_xml_files = Util.dug_dd_xml_objects()
+            output_base_path = Util.dug_annotation_path('')
             for file in topmed_files:
                 """Loading step"""
                 variables, tags = dug.load_tagged(file)
                 """Annotating step"""
-                #dug.annotate modifies the tags in place. It adds
+                # dug.annotate modifies the tags in place. It adds
                 # a new attribute `identifiers` on each tag.
                 # That is used in make kg downstream to build associciations
                 # between Variable Tags and other Concepts.
@@ -203,39 +333,103 @@ class DugUtil:
                 # derived from their descriptions.
                 # Using the inplace modified `tags` makes sense for make_tagged_kg. since concepts are
                 # binned within each tag.
-
-                output_file_path = os.path.join(output_base_path,
-                                                '.'.join(os.path.basename(file).split('.')[:-1]) + '_annotated.json')
+                output_file_path = DugUtil.make_output_file_path(output_base_path, file)
                 Util.write_object({
                     "variables": variables,
                     "original_tags": tags,
-                    # Don't think we need these yet
-                    # "annotated_tags": annotated_tags
+                    "concepts": annotated_tags
+                }, output_file_path)
+
+            for file in dd_xml_files:
+                """Loading XML step"""
+                variables = dug.load_dd_xml(file)
+                """Annotating XML step"""
+                annotated_tags = dug.annotate(variables)
+                # The annotated tags are not needed.
+                output_file_path = DugUtil.make_output_file_path(output_base_path, file)
+                Util.write_object({
+                    "variables": variables,
+                    "concepts": annotated_tags
                 }, output_file_path)
             log.info(f"Load and Annotate complete")
             output_log = dug.log_stream.getvalue()
         return output_log
 
     @staticmethod
-    def make_kg_tagged(config=None):
+    def make_kg_tagged(config=None, to_string=False):
         with Dug(config) as dug:
-            output_base_path = DugUtil.get_kgx_output_path(config)
+            output_base_path = Util.dug_kgx_path("")
             log.info("Starting building KGX files")
-            annotations_output_path = DugUtil.get_annotation_output_path(config)
-            annotated_file_names = DugUtil.get_multiple_file_path(annotations_output_path, 'topmed_*.json')
+            annotated_file_names = Util.dug_annotation_objects()
             for annotated_file in annotated_file_names:
-                log.info(f"Processing {annotated_file}")
-                with open(annotated_file) as f:
-                    data_set = json.load(f)
-                    graph = dug.make_tagged_kg(data_set['variables'], data_set['original_tags'])
-                output_file_path = os.path.join(output_base_path,
+                if "topmed" in annotated_file:
+                    log.info(f"Processing {annotated_file}")
+                    with open(annotated_file) as f:
+                        data_set = json.load(f)
+                        graph = dug.make_tagged_kg(data_set['variables'], data_set['original_tags'])
+                    output_file_path = os.path.join(output_base_path,
                                                 '.'.join(os.path.basename(annotated_file).split('.')[:-1]) + '_kgx.json')
-                Util.write_object(graph, output_file_path)
-                log.info(f"Wrote {len(graph['nodes'])} nodes and {len(graph['edges'])} edges, to {output_file_path}.")
+                    Util.write_object(graph, output_file_path)
+                    log.info(f"Wrote {len(graph['nodes'])} nodes and {len(graph['edges'])} edges, to {output_file_path}.")
+                else:
+                    log.info(f"Processing {annotated_file}")
+                    with open(annotated_file) as f:
+                        data_set = json.load(f)
+                        graph = dug.convert_to_kgx_json(data_set['variables'])
+                    output_file_path = os.path.join(output_base_path,
+                                                '.'.join(os.path.basename(annotated_file).split('.')[:-1]) + '_kgx.json')
+                    Util.write_object(graph, output_file_path)
+                    log.info(f"Wrote {len(graph['nodes'])} nodes and {len(graph['edges'])} edges, to {output_file_path}.")
             log.info("Building the graph complete")
             output_log = dug.log_stream.getvalue()
         return output_log
 
+    @staticmethod
+    def index_variables(config=None, to_string=False):
+        with Dug(config) as dug:
+            annotated_file_names = Util.dug_annotation_objects()
+            log.info(f'Indexing Dug variables, found {len(annotated_file_names)} file(s).' )
+            for file in annotated_file_names:
+                with open(file) as f:
+                    data_set = json.load(f)
+                    variables = data_set['variables']
+                    annotated_tags = data_set['concepts']
+                    log.info(f'Indexing {f}... found {len(variables)}')
+                    ## This has to do with
+                    # https://github.com/helxplatform/dug/blob/75eb62584f75eb9d6e66ce82ab54077a5d35c45e/dug/core.py#L550
+                    # @TODO maybe annotate should do such normalization from dict to list in variable identifiers.
+                    for variable in variables:
+                        for identifier in variable['identifiers']:
+                            if identifier.startswith("TOPMED:"):  # expand
+                                new_vars = list(annotated_tags[identifier]['identifiers'].keys())
+                                variable['identifiers'].extend(new_vars)
+                        variable["identifiers"] = list(set(list(variable["identifiers"])))
+                    dug.index_variables(variables)
+            output_log = dug.log_stream.getvalue()
+            log.info('Done.')
+            return output_log
 
+    @staticmethod
+    def crawl_tranql(config=None, to_string=False):
+        with Dug(config) as dug:
+            annotated_file_names = Util.dug_annotation_objects()
+            log.info(f'Crawling Dug Concepts, found {len(annotated_file_names)} file(s).')
+            for file in annotated_file_names:
+                with open(file) as f:
+                    data_set = json.load(f)
+                    crawl_dir = Util.dug_crawl_path('')
+                    dug.crawl_concepts(concepts=data_set["concepts"],crawl_dir=crawl_dir)
 
-
+    @staticmethod
+    def is_topmed_data_available(config=None, to_string=False):
+        if not config:
+            config = get_config()
+        home = os.path.join(os.path.dirname(os.path.join(os.path.abspath(__file__))), '..')
+        file_path = os.path.join(home, get_config()['dug_data_root'])
+        data_path = Path(file_path)
+        data_files = data_path.glob('topmed_*.csv')
+        files = [str(file) for file in data_files]
+        if not files:
+            log.error("No topmed files were found.")
+            raise FileNotFoundError("Error could not find topmed files")
+        return len(files)
