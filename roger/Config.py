@@ -1,10 +1,13 @@
+import json
+import os
+import warnings
 import yaml
+
 from flatten_dict import flatten, unflatten
-from os import path
 from typing import Dict, Optional
 
 
-CONFIG_FILENAME = path.join(path.dirname(path.abspath(__file__)), 'config.yaml')
+CONFIG_FILENAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.yaml')
 
 
 class Config:
@@ -12,10 +15,33 @@ class Config:
     Singleton config wrapper
     """
     __instance__: Optional[Dict] = None
+    os_var_prefix = "ROGERENV_"
 
     def __init__(self, file_name: str):
         if not Config.__instance__:
             Config.__instance__ = Config.read_config_file(file_name=file_name)
+            os_var_keys = os.environ.keys()
+            keys_of_interest = [x for x in os_var_keys if x.startswith(Config.os_var_prefix)]
+            for key in keys_of_interest:
+                new_key = key.replace(Config.os_var_prefix, "")
+                value = os.environ[key]
+                new_dict = Config.os_var_to_dict(new_key, value)
+                try:
+                    Config.update(new_dict)
+                except ValueError as e:
+                    warnings.warn(f"{e} encountered trying to assign string from "
+                                  f"OS variable `{key}` to a dictionary object."
+                                  f"Please specify inner keys.")
+
+    @staticmethod
+    def os_var_to_dict(var_name, value):
+        var_name = var_name.replace("__", "~")
+        var_name = var_name.replace("_", ".")
+        var_name = var_name.replace("~", "_")
+        var_name = var_name.lower()
+        m = {var_name: value}
+        result = unflatten(m, "dot")
+        return result
 
     @staticmethod
     def read_config_file(file_name: str):
@@ -59,7 +85,13 @@ class Config:
         return Config.__instance__
 
     def __str__(self):
-        return Config.__instance__.__str__()
+        flat = flatten(Config.__instance__)
+        for k in flat:
+            if 'PASSWORD' in k or 'password' in k:
+                flat[k] = '******'
+        flat = unflatten(flat)
+        result = json.dumps(flat)
+        return f"""{result}"""
 
 
 def get_default_config(file_name: str = CONFIG_FILENAME) -> Config:

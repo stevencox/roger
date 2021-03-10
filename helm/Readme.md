@@ -32,37 +32,6 @@ spec:
       storage: 20Gi
 ```
 
----
-
-#### Secrets:
-
-There are two secrets for airflow required for Git syncronization.
-
-This is used by `airflow.airflow.config.AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME`
- ```yaml
-    kind: Secret
-    apiVersion: v1
-    metadata:
-      name: airflow-secrets
-    data:
-      gitSshKey: >-
-        ######
-    type: Opaque
- ```
-
-This used by `airflow.dags.git.secret`
-
-```yaml
-kind: Secret
-apiVersion: v1
-metadata:
-  name: airflow-git-keys 
-data:
-  id_rsa: <private-key-base64-encoded>    
-  id_rsa.pub: <public-key-base64-encoded>
-  known_hosts: <known-hosts>
-type: Opaque
-```
 
 ### Parameters
 
@@ -148,6 +117,21 @@ refer to this [Redis helm chart](https://github.com/bitnami/charts/tree/master/b
 | `redis.slave.livenessProbe.enabled` | `False`
 | `redis.slave.extraFlags` | `['--loadmodule /usr/lib/redis/modules/redisgraph.so']`
 
+ 
+ ### Elastic Search 
+ 
+ Currently this installation assumes and external elastic search with password stored in 
+ an accessible Secrets kubernetes config.
+ 
+ 
+| Parameter |  Default |
+| --------- |  ----    | 
+| `elasticSearch.host` | `elasticsearch`
+| `elasticSearch.port` | `9200`
+| `elasticSearch.passwordSecretName` | `nil`
+| `elasticSearch.passwordSecretKey` | `nil`
+ 
+ 
  
 ### Installation
 

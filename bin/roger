@@ -5,7 +5,7 @@ set -e
 namespace=${NAMESPACE:-}
 release=${RELEASE:-roger}
 image_repository=${REDIS_IMAGE:-redislabs/redisgraph}
-image_tag=${REDIS_IMAGE_TAG:-2.2.13}
+image_tag=${REDIS_IMAGE_TAG:-2.2.14}
 cluster_domain=${CLUSTER_DOMAIN:-cluster.local}
 redis_worker_count=${REDIS_WORKER_COUNT:-1}
 branch=${WORKING_GIT_BRANCH:-develop}

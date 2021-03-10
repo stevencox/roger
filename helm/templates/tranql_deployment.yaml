@@ -45,6 +45,11 @@ spec:
             value: "/var/nfs/tranql-frontend_access_log"
           - name: ERROR_LOG
             value: "/var/nfs/tranql-frontend_error_log"
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.redis.existingSecret }}"
+                key: "{{ .Values.redis.existingSecretPasswordKey }}"
         volumeMounts:
           - name: logs
             mountPath: /var/nfs
