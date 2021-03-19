@@ -191,10 +191,16 @@ class Util:
         return sorted(glob.glob(dug_kgx_pattern))
 
     @staticmethod
-    def dug_annotation_objects():
+    def dug_concepts_objects():
         """ A list of dug annotation Objects. """
-        annotation_pattern = Util.dug_annotation_path("**.json")
-        return sorted(glob.glob(annotation_pattern))
+        concepts_file_path = Util.dug_annotation_path(os.path.join('*','concepts.pickle'))
+        return sorted(glob.glob(concepts_file_path))
+
+    @staticmethod
+    def dug_elements_objects():
+        """ A list of dug annotation Objects. """
+        concepts_file_path = Util.dug_annotation_path(os.path.join('*', 'elements.pickle'))
+        return sorted(glob.glob(concepts_file_path))
 
     @staticmethod
     def dug_topmed_path(name):
