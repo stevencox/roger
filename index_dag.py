@@ -15,8 +15,9 @@ with DAG(
                          bash_command='echo running Indexing pipeline && exit 0',
                          executor_config= get_executor_config())
     index_variables = create_python_task (dag, "IndexVariables", DugUtil.index_variables)
+    validate_index_variables = create_python_task(dag,"ValidateIndexVariables", DugUtil.validate_indexed_variables)
     crawl_tags = create_python_task(dag, "CrawlTags", DugUtil.crawl_tranql)
     finish = BashOperator (task_id='Finish', bash_command='echo finish')
-
     """ Build the DAG. """
-    intro >> [index_variables, crawl_tags] >> finish
+    intro >> index_variables >> validate_index_variables >> finish
+    intro >>  crawl_tags >> finish

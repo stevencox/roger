@@ -14,6 +14,7 @@ import logging
 import dug.tranql as tql
 import redis
 import pickle
+from functools import reduce
 
 log = get_logger()
 
@@ -23,6 +24,9 @@ class Dug:
     search_obj = None
     config = None
     cached_session = None
+    VARIABLES_INDEX = None
+    CONCEPTS_INDEX = None
+    KG_INDEX = None
 
     def __init__(self, config=None, to_string=True):
         if not config:
@@ -64,6 +68,10 @@ class Dug:
             os.environ['ELASTIC_USERNAME'] = elastic_conf.get("username")
             os.environ['ELASTIC_PASSWORD'] = elastic_conf.get("password")
             os.environ['NBOOST_API_HOST'] = elastic_conf.get("nboost_host")
+            indexing_config = config.get('indexing')
+            Dug.VARIABLES_INDEX = indexing_config.get('variables_index')
+            Dug.CONCEPTS_INDEX = indexing_config.get('concepts_index')
+            Dug.KG_INDEX = indexing_config.get('kg_index')
             Dug.search_obj = Search(os.environ['ELASTIC_API_HOST'])
 
     def __enter__(self):
@@ -376,10 +384,49 @@ class Dug:
         return graph
 
     @staticmethod
-    def index_variables(variables):
-        pass
-        # Dug.search_obj.index_variables(variables, "variables_index")
+    def index_elements(elements_file):
+        with open(elements_file, 'rb') as f:
+            elements = pickle.load(f)
+            # Index Annotated Elements
+            for element in elements:
+                # Only index DugElements as concepts will be indexed differently in next step
+                if not isinstance(element, DugConcept):
+                    Dug.search_obj.index_element(element, index=Dug.VARIABLES_INDEX)
 
+    @staticmethod
+    def validate_indexed_elements(elements_file):
+        with open(elements_file, 'rb') as f:
+            elements = [x for x in pickle.load(f) if not isinstance(x, DugConcept)]
+            # Pick ~ 10 %
+            sample_size = int(len(elements) * 0.1)
+            test_elements = elements[:sample_size] #random.choices(elements, k=sample_size)
+            log.info(f"Picked {len(test_elements)} from {elements_file} for validation.")
+            for element in test_elements:
+                # Pick a concept
+                concepts = [element.concepts[curie] for curie in element.concepts if element.concepts[curie].name]
+
+                if len(concepts):
+                    # Pick the first concept
+                    concept = concepts[0]
+                    curie = concept.id
+                    search_term = concept.name.replace("\w+/g", "")
+                    log.debug(f"Searching for Concept: {curie} and Search term: {search_term}")
+                    response = Dug.search_obj.search_variables(
+                        index=Dug.VARIABLES_INDEX,
+                        concept=curie,
+                        query=search_term,
+                        size=1000
+                    )
+                    all_elements_ids = [e['id'] for e in
+                                        reduce(lambda x, y: x + y['elements'], response[element.type], [])]
+                    present = element.id in all_elements_ids
+                    if not present:
+                        log.error(f"Did not find expected variable {element.id} in search result.")
+                        log.error(f"Concept id : {concept.id}, Search term: {search_term}")
+                else:
+                    log.info(
+                        f"{element.id} has no concepts annotated. Skipping validation for it."
+                    )
     @staticmethod
     def crawl_concepts(concepts, crawl_dir):
         # This needs to be redisgraph.graphName.
@@ -456,27 +503,17 @@ class DugUtil():
     @staticmethod
     def index_variables(config=None, to_string=False):
         with Dug(config) as dug:
-            annotated_file_names = Util.dug_annotation_objects()
-            log.info(f'Indexing Dug variables, found {len(annotated_file_names)} file(s).' )
-            for file in annotated_file_names:
-                with open(file) as f:
-                    data_set = json.load(f)
-                    variables = data_set['variables']
-                    annotated_tags = data_set['concepts']
-                    log.info(f'Indexing {f}... found {len(variables)}')
-                    ## This has to do with
-                    # https://github.com/helxplatform/dug/blob/75eb62584f75eb9d6e66ce82ab54077a5d35c45e/dug/core.py#L550
-                    # @TODO maybe annotate should do such normalization from dict to list in variable identifiers.
-                    for variable in variables:
-                        for identifier in variable['identifiers']:
-                            if identifier.startswith("TOPMED:"):  # expand
-                                new_vars = list(annotated_tags[identifier]['identifiers'].keys())
-                                variable['identifiers'].extend(new_vars)
-                        variable["identifiers"] = list(set(list(variable["identifiers"])))
-                    dug.index_variables(variables)
-            output_log = dug.log_stream.getvalue()
-            log.info('Done.')
-            return output_log
+            elements_object_files = Util.dug_elements_objects()
+            for file in elements_object_files:
+                dug.index_elements(file)
+
+    @staticmethod
+    def validate_indexed_variables(config=None, to_string=False):
+        with Dug(config) as dug:
+            elements_object_files = Util.dug_elements_objects()
+            for elements_object_file in elements_object_files:
+                dug.validate_indexed_elements(elements_object_file)
+
 
     @staticmethod
     def crawl_tranql(config=None, to_string=False):
