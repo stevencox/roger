@@ -9,6 +9,7 @@ import shutil
 import sys
 import time
 import yaml
+import pickle
 from bmt import Toolkit
 from collections import defaultdict
 from enum import Enum
@@ -94,6 +95,9 @@ class Util:
             obj = yaml.safe_load (Util.read_data (path))
         elif path.endswith (".json"):
             obj = json.loads (Util.read_data (path))
+        elif path.endswith(".pickle"):
+            with open(file=path, mode="rb") as stream:
+                obj = pickle.load(stream)
         return obj
 
     @staticmethod
@@ -125,6 +129,9 @@ class Util:
         elif path.endswith (".json"):
             with open (path, "w") as stream:
                 json.dump (obj, stream, indent=2)
+        elif path.endswith(".pickle"):
+            with open (path, "wb") as stream:
+                pickle.dump(obj, file=stream)
         else:
             """ Raise an exception if invalid. """
             raise ValueError (f"Unrecognized extension: {path}")
@@ -178,6 +185,16 @@ class Util:
     def dug_annotation_path(name):
         data_root = get_config()['data_root']
         return os.path.join(data_root, "dug", "annotations", name)
+
+    @staticmethod
+    def dug_expanded_concepts_path(name):
+        data_root = get_config()['data_root']
+        return os.path.join(data_root, "dug", "expanded_concepts", name)
+
+    @staticmethod
+    def dug_expanded_concept_objects():
+        file_pattern = Util.dug_expanded_concepts_path(os.path.join('*','expanded_concepts.pickle'))
+        return sorted(glob.glob(file_pattern))
 
     @staticmethod
     def dug_crawl_path(name):
