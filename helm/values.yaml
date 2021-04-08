@@ -29,7 +29,7 @@ redis:
 
 elasticSearch:
   # Currently uses external elastic search
-  host: elasticsearch
+  host: elasticsearch-master
   port: 9200
 
 
@@ -50,8 +50,8 @@ airflow:
     ## the airflow executor type to use
     ##
     image:
-      repository: renciorg/airflow-task
-      tag: "0.0.8"
+      repository: helxplatform/airflow
+      tag: "develop-v0.0.11"
     #  executor: CeleryExecutor
     executor: KubernetesExecutor
 
@@ -76,9 +76,8 @@ airflow:
       AIRFLOW__KUBERNETES__GIT_SYNC_DEST: "roger"
       AIRFLOW__KUBERNETES__DAGS_VOLUME_SUBPATH: "roger"
       AIRFLOW__KUBERNETES__DELETE_WORKER_PODS: "FALSE"
-      # @TODO change to helxplatform docker repo
-      AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY: "renciorg/airflow-task"
-      AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG: "0.0.8"
+      AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY: "helxplatform/airflow"
+      AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG: "develop-v0.0.11"
       # DAGS
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__KUBERNETES__ENV_FROM_CONFIGMAP_REF: "roger-generic-config-map"

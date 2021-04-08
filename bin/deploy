@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# ---- Kubernetes ------
+
+k8s () {
+
+  namespace=${NAMESPACE:-}
+  release=${RELEASE:-roger}
+  cluster_domain=${CLUSTER_DOMAIN:-cluster.local}
+  branch=${WORKING_GIT_BRANCH:-develop}
+
+  help () {
+    echo "
+    Usage :  ./deploy k8s [sub-command]
+
+    Deploys Roger pipeline on kubernetes along airflow.
+
+    Available sub-commands:
+      - config : view configuration
+      - init : Initializes helm dependencies for install.
+      - start : Runs helm upgrade/install.
+      - stop : Stops running instance.
+      - restart : Restarts running instance.
+      - client : If redis is installed on the system, it will try to connect to
+    "
+
+  }
+  config() {
+    echo "
+    Configuration for k8s instance.
+    To modify this values export variables with new values.
+    eg: export NAMESPACE=my-namespace
+
+      NAMESPACE: ${namespace}
+      RELEASE: ${release}
+      CLUSTER_DOMAIN: ${cluster_domain}
+      WORKING_GIT_BRANCH: ${branch}
+    "
+  }
+  init () {
+      helm dependency update ../helm
+  }
+  start () {
+    init
+    helm upgrade --install $release \
+    --set redis.clusterDomain=$cluster_domain \
+    --set airflow.airflow.config.AIRFLOW__KUBERNETES__GIT_BRANCH=$branch \
+    --set airflow.dags.git.ref=$branch \
+    --namespace=$namespace \
+    ../helm
+  }
+  stop () {
+      helm delete $release \
+     --namespace=$namespace
+  }
+  restart () {
+      stop
+      start
+  }
+  status () {
+    helm --namespace=$namespace status $release
+  }
+  client () {
+      redis-cli -h 127.0.0.1 -p 6379 -a $REDIS_PASSWORD
+  }
+  $*
+}
+#---------End Kubernetes-------------------
+
+#---------Docker-compose ------------------
+
+docker() {
+  COMPOSE_FILE=./docker_backend/docker-compose.yaml
+  help () {
+    echo "
+    Usage: ./deploy docker [subcommand]
+
+    Run docker based backends.
+
+    Available sub-commands:
+      config: Print contents of ./.env file
+      init: Export ./.env file contents as shell variables.
+      start: Runs docker containers up using ${COMPOSE_FILE}.
+      stop: Stops running docker containers.
+      restart: Restarts containers.
+    "
+  }
+  config() {
+     grep -v "^#" dev.env
+  }
+  init() {
+    export $(config | xargs -0)
+  }
+  start() {
+    init
+    docker-compose -f ${COMPOSE_FILE} up -d
+  }
+  stop() {
+    init
+    docker-compose -f ${COMPOSE_FILE}  down
+  }
+  $*
+}
+
+help () {
+    echo "
+    Usage : ./deploy [env-type] [subcommand]
+
+    Deploys roger dependencies in docker / k8s
+
+    env-type: either k8s or docker
+
+    Read below for the subcommands avaible or use
+    ./deploy [env-type] help .
+
+    "
+    docker help
+    k8s help
+}
+$*
