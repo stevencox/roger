@@ -1,11 +1,8 @@
-import os
-from pathlib import Path
+from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
-from airflow.models import DAG
-from airflow.contrib.sensors.python_sensor import PythonSensor
-from dug_helpers.dug_utils import DugUtil
-from dag_util import default_args, create_python_task, get_config
 
+from dag_util import default_args, create_python_task
+from dug_helpers.dug_utils import DugUtil
 
 """ Build the workflow's tasks and DAG. """
 with DAG(

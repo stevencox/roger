@@ -14,6 +14,8 @@ from bmt import Toolkit
 from collections import defaultdict
 from enum import Enum
 from io import StringIO
+
+from roger import ROGER_DATA_DIR
 from roger.Config import get_default_config as get_config
 from roger.roger_util import get_logger
 from roger.components.data_conversion_utils import TypeConversionUtil
@@ -140,8 +142,7 @@ class Util:
     def kgx_path (name):
         """ Form a KGX object path.
         :path name: Name of the KGX object. """
-        data_root = get_config()['data_root']
-        return os.path.join (data_root, "kgx", name)
+        return str(ROGER_DATA_DIR / "kgx" / name)
 
     @staticmethod
     def kgx_objects ():
@@ -153,8 +154,7 @@ class Util:
     def merge_path (name):
         """ Form a merged KGX object path.
         :path name: Name of the merged KGX object. """
-        data_root = get_config()['data_root']
-        return os.path.join (data_root, "merge", name)
+        return str(ROGER_DATA_DIR / 'merge' / name)
 
     @staticmethod
     def merged_objects ():
@@ -166,30 +166,25 @@ class Util:
     def schema_path (name):
         """ Path to a schema object.
         :param name: Name of the object to get a path for. """
-        data_root = get_config()['data_root']
-        return os.path.join (data_root, "schema", name)
+        return str(ROGER_DATA_DIR / 'schema' / name)
 
     @staticmethod
     def bulk_path (name):
         """ Path to a bulk load object.
         :param name: Name of the object. """
-        data_root = get_config()['data_root']
-        return os.path.join (data_root, "bulk", name)
+        return str(ROGER_DATA_DIR / 'bulk' / name)
 
     @staticmethod
     def dug_kgx_path(name):
-        data_root = get_config()['data_root']
-        return os.path.join (data_root, "dug", "kgx",  name)
+        return str(ROGER_DATA_DIR / "dug" / "kdx" / name)
 
     @staticmethod
     def dug_annotation_path(name):
-        data_root = get_config()['data_root']
-        return os.path.join(data_root, "dug", "annotations", name)
+        return str(ROGER_DATA_DIR / "dug" / "annotations" / name)
 
     @staticmethod
     def dug_expanded_concepts_path(name):
-        data_root = get_config()['data_root']
-        return os.path.join(data_root, "dug", "expanded_concepts", name)
+        return str(ROGER_DATA_DIR / 'dug' / 'expanded_concepts' / name)
 
     @staticmethod
     def dug_expanded_concept_objects():
@@ -198,8 +193,7 @@ class Util:
 
     @staticmethod
     def dug_crawl_path(name):
-        data_root = get_config()['data_root']
-        return os.path.join(data_root, "dug", "crawl", name)
+        return str(ROGER_DATA_DIR / 'dug' / 'crawl' / name)
 
     @staticmethod
     def dug_kgx_objects():
@@ -223,7 +217,7 @@ class Util:
     def dug_topmed_path(name):
         """ Topmed source files"""
         home = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(home, "..", "dug_helpers", "dug_data", "topmed_data", name)
+        return os.path.join(home, "../..", "dug_helpers", "dug_data", "topmed_data", name)
 
     @staticmethod
     def dug_topmed_objects():
@@ -234,7 +228,7 @@ class Util:
     def dug_dd_xml_path(name):
         """ Topmed source files"""
         home = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(home, "..", "dug_helpers", "dug_data", "dd_xml_data", name)
+        return os.path.join(home, "../..", "dug_helpers", "dug_data", "dd_xml_data", name)
 
     @staticmethod
     def dug_dd_xml_objects():
@@ -806,9 +800,14 @@ class BulkLoad:
         args.extend(['--enforce-schema'])
         args.extend([f"{redisgraph['graph']}"])
         """ standalone_mode=False tells click not to sys.exit() """
-        bulk_insert (args, standalone_mode=False)
+        log.debug(f"Calling bulk_insert with extended args: {args}")
+        try:
+            bulk_insert (args, standalone_mode=False)
+        except Exception as e:
+            log.error(f"Unexpected {e.__class__.__name__}: {e}")
+            raise
 
-    def get_redisgraph (self, redisgraph):
+    def get_redisgraph(self, redisgraph):
         return RedisGraph (host=redisgraph['host'],
                            port=redisgraph['port'],
                            password=redisgraph.get('password', ''),

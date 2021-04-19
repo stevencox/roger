@@ -1,7 +1,5 @@
-import logging
 import redis
 from redisgraph import Node, Edge, Graph
-from redis.exceptions import ResponseError
 from roger.roger_util import get_logger
 
 logger = get_logger ()

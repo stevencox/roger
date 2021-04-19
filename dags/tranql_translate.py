@@ -15,7 +15,8 @@ from dag_util import get_executor_config, default_args, create_python_task
 with DAG(
     dag_id='tranql_translate',
     default_args=default_args,
-    schedule_interval=None
+    schedule_interval=None,
+    concurrency=16,
 ) as dag:
 
     """ Build the workflow tasks. """

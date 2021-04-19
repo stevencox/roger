@@ -1,4 +1,4 @@
-import pytest, os
+import pytest
 from roger.core import BulkLoad
 from roger.test.mocks import BiolinkMock, UtilMock
 from unittest.mock import patch

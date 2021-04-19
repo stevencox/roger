@@ -1,6 +1,9 @@
+import traceback
+
 from dug.annotate import DugAnnotator, Annotator, Normalizer, OntologyHelper, Preprocessor, SynonymFinder, ConceptExpander
 from dug.parsers import DugConcept, DugElement
 from dug.core import Search, get_parser, Crawler
+from dug_helpers import DUG_DATA_DIR
 from roger.roger_util import get_logger
 from roger.Config import get_default_config as get_config
 from requests_cache import CachedSession
@@ -79,11 +82,11 @@ class Dug:
         if not Dug.search_obj:
             # Dug search expects these to be set as os envrion
             # Elastic config
-            elastic_conf = config.get("elastic_search")
-            os.environ['ELASTIC_API_HOST'] = elastic_conf.get("host")
-            os.environ['ELASTIC_USERNAME'] = elastic_conf.get("username")
-            os.environ['ELASTIC_PASSWORD'] = elastic_conf.get("password")
-            os.environ['NBOOST_API_HOST'] = elastic_conf.get("nboost_host")
+            # elastic_conf = config.get("elastic_search")
+            # os.environ['ELASTIC_API_HOST'] = elastic_conf.get("host")
+            # os.environ['ELASTIC_USERNAME'] = elastic_conf.get("username")
+            # os.environ['ELASTIC_PASSWORD'] = elastic_conf.get("password")
+            # os.environ['NBOOST_API_HOST'] = elastic_conf.get("nboost_host")
             indexing_config = config.get('indexing')
             Dug.VARIABLES_INDEX = indexing_config.get('variables_index')
             Dug.CONCEPTS_INDEX = indexing_config.get('concepts_index')
@@ -95,6 +98,7 @@ class Dug:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type or exc_val or exc_tb:
+            traceback.print_exc()
             log.error(f"{exc_val} {exc_val} {exc_tb}")
 
     @staticmethod
@@ -683,11 +687,7 @@ class DugUtil():
 
     @staticmethod
     def is_topmed_data_available(config=None, to_string=False):
-        if not config:
-            config = get_config()
-        home = os.path.join(os.path.dirname(os.path.join(os.path.abspath(__file__))), '..')
-        file_path = os.path.join(home, get_config()['dug_data_root'])
-        data_path = Path(file_path)
+        data_path = DUG_DATA_DIR / 'topmed_data'
         data_files = data_path.glob('topmed_*.csv')
         files = [str(file) for file in data_files]
         if not files:
