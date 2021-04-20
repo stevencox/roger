@@ -1,4 +1,4 @@
-PYTHON       = 	PYTHONPATH=dags:${PYTHONPATH} /usr/bin/env python3
+PYTHON       = 	PYTHONPATH=dags /usr/bin/env python3
 VERSION_FILE = ./dags/_version.py
 VERSION      = $(shell cut -d " " -f 3 ${VERSION_FILE})
 DOCKER_REPO  = docker.io
@@ -24,11 +24,9 @@ rm_dirs:
 	rm -rf ./dags/roger/data/*
 
 #install: Install application along with required packages to local environment
-install: mk_dirs
+install:
 	${PYTHON} -m pip install --upgrade pip
 	${PYTHON} -m pip install -r requirements.txt
-
-	docker-compose up airflow-init
 
 #test.lint: Run flake8 on the source code
 test.lint:
@@ -37,11 +35,11 @@ test.lint:
 #test.doc: Run doctests in the source code
 test.doc:
 	echo "Running doc tests..."
-	${PYTHON} -m pytest --doctest-modules dags
+	${PYTHON} -m pytest --doctest-modules dags/roger
 
 #test.unit: Run unit tests
 test.unit:
-	echo "Running unit tests..."
+	${PYTHON} --version
 	${PYTHON} -m pytest tests/unit
 
 #test.integration: Run unit tests
@@ -50,7 +48,7 @@ test.integration:
 	${PYTHON} -m pytest tests/integration
 
 #test: Run all tests
-test: test.doc test.unit
+test: test.integration
 
 #build: Build the Docker image
 build:
@@ -66,6 +64,10 @@ publish:
 #clean: Remove old data
 clean: rm_dirs mk_dirs
 
+#stack.init: Initialize the airflow DB
+stack.init: mk_dirs
+	docker-compose up airflow-init
+
 #stack: Bring up Airflow and all backend services
-stack:
+stack: stack.init
 	docker-compose up
