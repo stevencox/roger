@@ -1,8 +1,9 @@
-import pytest
 import json
+import pytest
 from unittest.mock import patch
+
 from roger.core import KGXModel
-from roger.test.mocks import BiolinkMock, UtilMock
+from .mocks import BiolinkMock, UtilMock
 
 
 @pytest.fixture

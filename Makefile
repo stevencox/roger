@@ -1,4 +1,4 @@
-PYTHON       = /usr/bin/env python3
+PYTHON       = 	PYTHONPATH=dags:${PYTHONPATH} /usr/bin/env python3
 VERSION_FILE = ./dags/_version.py
 VERSION      = $(shell cut -d " " -f 3 ${VERSION_FILE})
 DOCKER_REPO  = docker.io
@@ -47,6 +47,7 @@ test.unit:
 #test.integration: Run unit tests
 test.integration:
 	echo "Running integration tests..."
+	${PYTHON} -m pytest tests/integration
 
 #test: Run all tests
 test: test.doc test.unit
