@@ -2,44 +2,6 @@
 #set -x
 set -e
 
-namespace=${NAMESPACE:-}
-release=${RELEASE:-roger}
-image_repository=${REDIS_IMAGE:-redislabs/redisgraph}
-image_tag=${REDIS_IMAGE_TAG:-2.2.14}
-cluster_domain=${CLUSTER_DOMAIN:-cluster.local}
-redis_worker_count=${REDIS_WORKER_COUNT:-1}
-branch=${WORKING_GIT_BRANCH:-develop}
-
-# https://github.com/bitnami/charts/tree/master/bitnami/redis
-init () {
-    helm dependency update ../helm
-}
-start () {
-  helm upgrade --install $release \
-  --set redis.clusterDomain=$cluster_domain \
-  --set airflow.airflow.config.AIRFLOW__KUBERNETES__GIT_BRANCH=$branch \
-  --set airflow.dags.git.ref=$branch \
-  --namespace=$namespace \
-  ../helm
-}
-stop () {
-    helm delete $release \
-	 --namespace=$namespace
-}
-restart () {
-    stop
-    start
-}
-status () {
-  helm --namespace=$namespace status $release
-}
-client () {
-    redis-cli -h 127.0.0.1 -p 6379 -a $REDIS_PASSWORD
-}
-#----------------------------
-
-
-
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export ROGER_HOME=$( dirname $DIR )

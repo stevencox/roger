@@ -2,6 +2,7 @@ from roger.core import RogerUtil
 from roger.Config import get_default_config as get_config
 from roger.roger_util import get_logger
 from dug_helpers.dug_utils import DugUtil
+import sys
 import argparse
 
 
@@ -29,9 +30,18 @@ if __name__ == "__main__":
                         action="store_true")
 
     """ Dug indexing CLI . """
-    parser.add_argument('-I', '--index-variables', help="Index annotated variables to elastic search.",
+    parser.add_argument('-iv', '--index-variables', help="Index annotated variables to elastic search.",
                         action="store_true")
     parser.add_argument('-C', '--crawl-concepts', help="Crawl tranql and index concepts",
+                        action="store_true")
+
+    parser.add_argument('-ic', '--index-concepts', help="Index expanded concepts to elastic search.",
+                        action="store_true")
+
+    parser.add_argument('-vc', '--validate-concepts', help="Validates indexing of concepts",
+                        action="store_true")
+
+    parser.add_argument('-vv', '--validate-variables', help="Validates indexing of variables",
                         action="store_true")
 
     args = parser.parse_args ()
@@ -69,7 +79,16 @@ if __name__ == "__main__":
     if args.index_variables:
         DugUtil.index_variables(config=config)
 
+    if args.validate_variables:
+        DugUtil.validate_indexed_variables(config=config)
+
     if args.crawl_concepts:
         DugUtil.crawl_tranql(config=config)
+
+    if args.index_concepts:
+        DugUtil.index_concepts(config=config)
+
+    if args.validate_concepts:
+        DugUtil.validate_indexed_concepts(config=config)
 
     sys.exit (0)

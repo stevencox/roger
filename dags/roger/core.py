@@ -875,7 +875,8 @@ class RogerUtil:
         output = None
         log.debug("Getting KGX method called.")
         with Roger (to_string, config=config) as roger:
-            roger.kgx.get ()
+            dataset_version=config.get('kgx', {}).get('dataset_version')
+            roger.kgx.get (dataset_version=dataset_version)
             output = roger.log_stream.getvalue () if to_string else None
         return output
     

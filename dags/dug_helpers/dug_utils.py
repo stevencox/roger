@@ -405,12 +405,21 @@ class Dug:
 
     @staticmethod
     def index_elements(elements_file):
+        log.info(f"Indexing {elements_file}...")
         elements = Util.read_object(elements_file)
+        count = 0
+        total = len(elements)
         # Index Annotated Elements
+        log.info(f"found {len(elements)} from elements files.")
         for element in elements:
+            count += 1
             # Only index DugElements as concepts will be indexed differently in next step
             if not isinstance(element, DugConcept):
                 Dug.search_obj.index_element(element, index=Dug.VARIABLES_INDEX)
+            percent_complete = (count / total)* 100
+            if percent_complete % 10 == 0:
+                log.info(f"{percent_complete} %")
+        log.info(f"Done indexing {elements_file}.")
 
     @staticmethod
     def validate_indexed_elements(elements_file):
