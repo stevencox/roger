@@ -31,6 +31,24 @@ cd bin
 make clean install validate
 ```
 
+## Quickstart
+
+You can quickly set up the required dependencies and spin up all the necessary services with:
+
+```shell
+make install
+make stack
+```
+
+Without using make, you can run the necessary commands directly on the shell:
+
+```shell
+mkdir -p {logs,plugins}
+mkdir -p local_storage/elastic
+docker-compose up airflow-init
+docker-compose up
+```
+
 ## Design
 
 Roger's is designed to transform data through well defined and transparent phases.

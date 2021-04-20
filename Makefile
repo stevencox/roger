@@ -14,10 +14,21 @@ DOCKER_IMAGE = ${DOCKER_OWNER}/${DOCKER_APP}:$(DOCKER_TAG)
 help:
 	@grep -E '^#[a-zA-Z\.\-]+:.*$$' $(MAKEFILE_LIST) | tr -d '#' | awk 'BEGIN {FS = ": "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
+mk_dirs:
+	mkdir -p {logs,plugins}
+	mkdir -p local_storage/elastic
+
+rm_dirs:
+	rm -rf logs/*
+	rm -rf local_storage/elastic/*
+	rm -rf ./dags/roger/data/*
+
 #install: Install application along with required packages to local environment
-install:
+install: mk_dirs
 	${PYTHON} -m pip install --upgrade pip
 	${PYTHON} -m pip install -r requirements.txt
+
+	docker-compose up airflow-init
 
 #test.lint: Run flake8 on the source code
 test.lint:
@@ -50,3 +61,10 @@ build:
 publish:
 	docker tag ${DOCKER_IMAGE} ${DOCKER_REPO}/${DOCKER_IMAGE}
 	docker push ${DOCKER_REPO}/${DOCKER_IMAGE}
+
+#clean: Remove old data
+clean: rm_dirs mk_dirs
+
+#stack: Bring up Airflow and all backend services
+stack:
+	docker-compose up
