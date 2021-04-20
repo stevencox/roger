@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 
 from roger.core import BulkLoad
-from .mocks import BiolinkMock, UtilMock
+from .conftest import BiolinkMock, UtilMock
 
 
 @pytest.fixture

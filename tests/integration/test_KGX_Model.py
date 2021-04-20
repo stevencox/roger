@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch
 
 from roger.core import KGXModel
-from .mocks import BiolinkMock, UtilMock
+from .conftest import BiolinkMock, UtilMock
 
 
 @pytest.fixture
