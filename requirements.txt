@@ -14,4 +14,4 @@ elasticsearch==7.11.0
 git+git://github.com/biolink/biolink-model-toolkit@0.4.0#egg=bmt
 biolinkml>=1.5.10
 orjson
-git+git://githu:b.com/biolink/kgx@1.0.0#egg=kgx
+git+git://github.com/biolink/kgx@1.0.0#egg=kgx
