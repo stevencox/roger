@@ -32,10 +32,13 @@ clean:
 	$(RM) -rf ${ANNOTATE_DIR}
 	$(RM) -rf ${KGX_DIR}
 
+get_input_files:
+	$(TIME) python ${CLI_WRAPPER} -gd
+
 annotate_and_normalize:
 	$(TIME) python ${CLI_WRAPPER} -l
 
 create_kgx_files:
 	$(TIME) python ${CLI_WRAPPER} -t
 
-all: annotate_and_normalize create_kgx_files
+all: get_input_files annotate_and_normalize create_kgx_files

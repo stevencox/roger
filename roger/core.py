@@ -1,8 +1,9 @@
 import argparse
 import glob
-import json
+import orjson as json
 import os
 import ntpath
+import pathlib
 import redis
 import requests
 import shutil
@@ -128,7 +129,7 @@ class Util:
                 yaml.dump (obj, outfile)
         elif path.endswith (".json"):
             with open (path, "w") as stream:
-                json.dump (obj, stream, indent=2)
+                stream.write(str(json.dumps (obj).decode('utf-8')))
         elif path.endswith(".pickle"):
             with open (path, "wb") as stream:
                 pickle.dump(obj, file=stream)
@@ -220,10 +221,20 @@ class Util:
         return sorted(glob.glob(concepts_file_path))
 
     @staticmethod
+    def dug_input_files_path(name):
+        data_root = get_config()['data_root']
+        return os.path.join(data_root, "dug", "input_files", name)
+
+    @staticmethod
+    def mkdir(path):
+        directory = os.path.dirname(path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+    @staticmethod
     def dug_topmed_path(name):
         """ Topmed source files"""
-        home = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(home, "..", "dug_helpers", "dug_data", "topmed_data", name)
+        return os.path.join(Util.dug_input_files_path(''), 'topmed', name)
 
     @staticmethod
     def dug_topmed_objects():
@@ -233,13 +244,26 @@ class Util:
     @staticmethod
     def dug_dd_xml_path(name):
         """ Topmed source files"""
-        home = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(home, "..", "dug_helpers", "dug_data", "dd_xml_data", name)
+        return os.path.join(Util.dug_input_files_path(''), 'db_gap', name)
+
+    @staticmethod
+    def get_files_recursive(file_name_filter, current_dir):
+        file_paths = []
+        for child in current_dir.iterdir():
+            if child.is_dir():
+                file_paths += Util.get_files_recursive(file_name_filter, child)
+                continue
+            if not file_name_filter(child.name):
+                continue
+            else:
+                file_paths += [child]
+        return file_paths
 
     @staticmethod
     def dug_dd_xml_objects():
-        topmed_file_pattern = Util.dug_dd_xml_path("*.xml")
-        return sorted(glob.glob(topmed_file_pattern))
+        file_path = pathlib.Path(Util.dug_dd_xml_path(''))
+        files = Util.get_files_recursive(lambda file_name: not file_name.startswith('._') and file_name.endswith('.xml'), file_path)
+        return sorted([str(f) for f in files])
 
     @staticmethod
     def copy_file_to_dir(file_location, dir_name):
@@ -416,7 +440,8 @@ class KGXModel:
     def merge (self):
         """ Merge nodes. Would be good to have something less computationally intensive. """
         for path in Util.kgx_objects ():
-            new_path = path.replace ('/kgx/', '/merge/')
+            path_sep = os.path.sep
+            new_path = path.replace (f'{path_sep}kgx{path_sep}', f'{path_sep}merge{path_sep}')
 
             source_stats = os.stat (path)
             if os.path.exists (new_path):
@@ -764,8 +789,8 @@ class BulkLoad:
                                 # cast it if it doesn't match type in schema keys i.e all_keys
                                 value = TypeConversionUtil.cast(obj[obj_key], all_keys[obj_key]) \
                                     if expected_type != current_type else value
-
-                            values.append(str(value))
+                            # escape quotes .
+                            values.append(str(value).replace("\"", "\\\""))
                         s = self.separator.join(values)
                         stream.write(s)
                         stream.write("\n")

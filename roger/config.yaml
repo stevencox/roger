@@ -10,7 +10,7 @@ logging:
   format: '[%(name)s][%(filename)s][%(funcName)20s] %(levelname)s: %(message)s'
 
 data_root: /opt/roger/data
-dug_data_root: dug_helpers/dug_data/topmed_data
+dug_data_root: dug_helpers/dug_data/
 base_data_uri: https://stars.renci.org/var/kgx_data/trapi-1.0/
 
 kgx:

@@ -63,8 +63,7 @@ def get_executor_config(data_path='/opt/roger/data'):
                        "name": secret_name,
                        "key": secret_key_name
                     }
-                }
-            })
+                }})
 
     k8s_executor_config = {
         "KubernetesExecutor": {
@@ -93,19 +92,22 @@ def get_executor_config(data_path='/opt/roger/data'):
     return k8s_executor_config
 
 
-def create_python_task (dag, name, a_callable):
+def create_python_task (dag, name, a_callable, func_kwargs=None):
     """ Create a python task.
+    :param func_kwargs: additional arguments for callable.
     :param dag: dag to add task to.
     :param name: The name of the task.
     :param a_callable: The code to run in this task.
     """
+    op_kwargs = {
+            "python_callable": a_callable,
+            "to_string": True
+        }
+    op_kwargs.update(func_kwargs if func_kwargs is not None else {})
     return PythonOperator(
         task_id=name,
         python_callable=task_wrapper,
-        op_kwargs={
-            "python_callable": a_callable,
-            "to_string": True
-        },
+        op_kwargs=op_kwargs,
         executor_config=get_executor_config (),
         dag=dag,
         provide_context=True

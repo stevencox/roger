@@ -24,6 +24,8 @@ if __name__ == "__main__":
     parser.add_argument('-a', '--validate', help="Validate the insert", action='store_true')
 
     """ Dug Annotation CLI. """
+    parser.add_argument('-gd', '--get_dug_input_files', help="Gets input files for annotation",
+                        action="store_true")
     parser.add_argument('-l', '--load-and-annotate',help="Annotates and normalizes datasets of varaibles.",
                         action="store_true")
     parser.add_argument('-t', '--make-tagged-kg', help="Creates KGX files from annotated variable datesets.",
@@ -55,8 +57,13 @@ if __name__ == "__main__":
     # When all lights are on...
 
     # Annotation comes first
+    if args.get_dug_input_files:
+        DugUtil.get_topmed_files(config=config)
+        DugUtil.extract_dbgap_zip_files(config=config)
+
     if args.load_and_annotate:
-        DugUtil.load_and_annotate(config=config)
+        DugUtil.annotate_db_gap_files(config=config)
+        DugUtil.annotate_topmed_files(config=config)
 
     if args.make_tagged_kg:
         DugUtil.make_kg_tagged(config=config)
