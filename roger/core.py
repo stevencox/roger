@@ -841,7 +841,6 @@ class BulkLoad:
     
     def validate (self):
         redisgraph = self.config.get('redisgraph', {})
-        print (f"config:{json.dumps(redisgraph, indent=2)}")
         db = self.get_redisgraph (redisgraph)
         validation_queries = config.get('validation', {}).get('queries', [])
         for key, query in validation_queries.items ():
