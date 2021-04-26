@@ -1,7 +1,7 @@
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 
-from dag_util import get_executor_config, default_args, create_python_task
+from roger.dag_util import get_executor_config, default_args, create_python_task
 from dug_helpers.dug_utils import DugUtil
 
 """ Build the workflow's tasks and DAG. """

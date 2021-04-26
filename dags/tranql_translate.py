@@ -8,7 +8,7 @@ An Airflow workflow for the Roger Translator KGX data pipeline.
 from airflow.operators.bash_operator import BashOperator
 from airflow.models import DAG
 from roger.core import RogerUtil
-from dag_util import get_executor_config, default_args, create_python_task
+from roger.dag_util import get_executor_config, default_args, create_python_task
 
 
 """ Build the workflow's tasks and DAG. """
