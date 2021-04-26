@@ -216,9 +216,12 @@ class Util:
 
     @staticmethod
     def dug_input_files_path(name):
-        path = ROGER_DATA_DIR / "dug" / "input_files" / name
+        path = ROGER_DATA_DIR / "dug" / "input_files"
         if not path.exists():
+            log.info(f"Input file path: {path} does not exist, creating")
             path.mkdir(parents=True, exist_ok=True)
+        else:
+            log.info(f"Input file path: {path} already exists")
         return str(path)
 
     @staticmethod
@@ -239,9 +242,9 @@ class Util:
         return sorted(glob.glob(topmed_file_pattern))
 
     @staticmethod
-    def dug_dd_xml_path(name):
+    def dug_dd_xml_path():
         """ Topmed source files"""
-        return os.path.join(Util.dug_input_files_path(''), 'db_gap', name)
+        return os.path.join(Util.dug_input_files_path(''), 'db_gap')
 
     @staticmethod
     def get_files_recursive(file_name_filter, current_dir):
@@ -258,7 +261,7 @@ class Util:
 
     @staticmethod
     def dug_dd_xml_objects():
-        file_path = pathlib.Path(Util.dug_dd_xml_path(''))
+        file_path = pathlib.Path(Util.dug_dd_xml_path())
         files = Util.get_files_recursive(lambda file_name: not file_name.startswith('._') and file_name.endswith('.xml'), file_path)
         return sorted([str(f) for f in files])
 
