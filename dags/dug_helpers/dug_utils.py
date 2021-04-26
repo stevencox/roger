@@ -101,6 +101,7 @@ class Dug:
         if exc_type or exc_val or exc_tb:
             traceback.print_exc()
             log.error(f"{exc_val} {exc_val} {exc_tb}")
+            log.exception("Got an exception")
 
     @staticmethod
     def load_tagged(file):
