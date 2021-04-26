@@ -216,8 +216,10 @@ class Util:
 
     @staticmethod
     def dug_input_files_path(name):
-        data_root = get_config()['data_root']
-        return os.path.join(data_root, "dug", "input_files", name)
+        path = ROGER_DATA_DIR / "dug" / "input_files" / name
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+        return str(path)
 
     @staticmethod
     def mkdir(path):
