@@ -10,6 +10,12 @@ versions:
   - mychem.json
   - ontological-hierarchy.json
   - panther.json
+  - foodb.json
+  - pharos.json
+  - intact.json
+  - human-goa.json
+  - uberongraph.json
+  - viral-proteome.json
   version: v1.0
 - version: test
   files:

@@ -16,6 +16,7 @@ import hashlib
 import logging
 import dug.tranql as tql
 import redis
+import tarfile
 from functools import reduce
 
 log = get_logger()
@@ -110,7 +111,6 @@ class Dug:
     def load_dd_xml(file):
         log.info(f"Loading DD xml file --> {file}")
         return Dug.annotator.load_data_dictionary(file)
-
 
     @staticmethod
     def annotate_files(parser_name, parsable_files):
@@ -443,7 +443,10 @@ class Dug:
                 if not present:
                     log.error(f"Did not find expected variable {element.id} in search result.")
                     log.error(f"Concept id : {concept.id}, Search term: {search_term}")
-                    exit(-1)
+                    raise Exception(f"Validation exception - did not find variable {element.id} "
+                                    f"from {str(elements_file)}"
+                                    f"when searching variable index with"
+                                    f" Concept ID : {concept.id} using Search Term : {search_term} ")
             else:
                 log.info(
                     f"{element.id} has no concepts annotated. Skipping validation for it."
@@ -455,7 +458,7 @@ class Dug:
             index=Dug.VARIABLES_INDEX,
             concept=curie,
             query=search_term,
-            size=1000
+            size=2000
         )
         ids_dict = []
         for element_type in response:
@@ -531,6 +534,9 @@ class Dug:
         # <= because we might have no results for some concepts from tranql
         size = int(len(concepts)*0.1)
         sample_concepts = {key: value for key, value in concepts.items() if value.kg_answers }
+        if len(concepts) == 0:
+            log.info(f"No Concepts found.")
+            return
         log.info(f"Found only {len(sample_concepts)} Concepts with Knowledge graph out of {len(concepts)}. {(len(sample_concepts)/ len(concepts))*100} %")
         # 2. pick elements that have concepts in the sample concepts set
         sample_elements = {}
@@ -558,44 +564,45 @@ class Dug:
             # validation here is that for any of these nodes we should get back
             # the variable.
             # make unique
-            search_terms = set(search_terms)
-            log.debug(f"Found {len(search_terms)} Search terms for concept {curie}")
+            search_terms_cap = 10
+            search_terms = list(set(search_terms))[:search_terms_cap]
+            log.debug(f"Using {len(search_terms)} Search terms for concept {curie}")
             for search_term in search_terms:
                 # avoids elastic failure due to some reserved characters
                 # 'search_phase_execution_exception', 'token_mgr_error: Lexical error ...
-                try:
-                    search_term = re.sub(r'[^a-zA-Z0-9_\ ]+', '', search_term)
+                search_term = re.sub(r'[^a-zA-Z0-9_\ ]+', '', search_term)
 
-                    searched_element_ids = Dug._search_elements(curie, search_term)
-                except:
-                    print(f'{search_term}')
+                searched_element_ids = Dug._search_elements(curie, search_term)
+
                 present = bool(len([x for x in sample_elements[curie] if x in searched_element_ids]))
                 if not present:
                     log.error(f"Did not find expected variable {element.id} in search result.")
                     log.error(f"Concept id : {concept.id}, Search term: {search_term}")
-                    exit(-1)
+                    raise Exception(f"Validation error - Did not find {element.id} for"
+                                    f" Concept id : {concept.id}, Search term: {search_term}")
 
 
 class DugUtil():
 
     @staticmethod
-    def load_and_annotate(config=None, to_string=False):
+    def annotate_db_gap_files(config=None, to_string=False, files = None):
         with Dug(config, to_string=to_string) as dug:
-            # This needs to be meta data driven (?)
-            # annotation:
-            #   - dir: <topmed_dir>
-            #     parser: "Dug parser name"
-            #     kg_type : <harmonized (Topmed graph) vs non-harmonized (Dbgap graph) > ?
-            topmed_files = Util.dug_topmed_objects()
-            dd_xml_files = Util.dug_dd_xml_objects()
-            # Parse db gap
+            if files is None:
+                files = Util.dug_dd_xml_objects()
             parser_name = "DbGaP"
             dug.annotate_files(parser_name=parser_name,
-                               parsable_files=dd_xml_files)
-            # Parse and annotate Topmed
+                               parsable_files=files)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
+
+    @staticmethod
+    def annotate_topmed_files(config=None, to_string=False, files = None):
+        with Dug(config, to_string=to_string) as dug:
+            if files is None:
+                files = Util.dug_topmed_objects()
             parser_name = "TOPMedTag"
             dug.annotate_files(parser_name=parser_name,
-                               parsable_files=topmed_files)
+                               parsable_files=files)
             output_log = dug.log_stream.getvalue() if to_string else ''
         return output_log
 
@@ -643,6 +650,7 @@ class DugUtil():
         with Dug(config, to_string=to_string) as dug:
             elements_object_files = Util.dug_elements_objects()
             for elements_object_file in elements_object_files:
+                log.info(f"Validating {elements_object_file}")
                 dug.validate_indexed_elements(elements_object_file)
             output_log = dug.log_stream.getvalue() if to_string else ''
         return output_log
@@ -695,11 +703,29 @@ class DugUtil():
         return output_log
 
     @staticmethod
-    def is_topmed_data_available(config=None, to_string=False):
+    def get_topmed_files(config=None, to_string=False):
+        """
+        Currently this is a copy form dug data dir to <working dir>/dug/input_files/topmed/
+        :param config:
+        :param to_string:
+        :return:
+        """
         data_path = DUG_DATA_DIR / 'topmed_data'
-        data_files = data_path.glob('topmed_*.csv')
-        files = [str(file) for file in data_files]
-        if not files:
-            log.error("No topmed files were found.")
-            raise FileNotFoundError("Error could not find topmed files")
-        return len(files)
+        data_files = data_path.glob('topmed_*')
+        output_path = Util.dug_input_files_path("topmed/")
+        Util.mkdir(output_path)
+        for file in data_files:
+            output_file_name = os.path.join(output_path, file.name)
+            Util.copy_file_to_dir(file, output_file_name)
+            log.info(f"Copied {file.name} to {output_file_name}")
+
+    @staticmethod
+    def extract_dbgap_zip_files(config=None, to_string=False):
+
+        data_path = DUG_DATA_DIR / 'dd_xml_data'
+        zip_file_path = data_path / 'bdc_dbgap_data_dicts.tar.gz'
+        log.info(f"Unzipping {zip_file_path}")
+        tar = tarfile.open(zip_file_path)
+        out_path = Util.dug_input_files_path("db_gap/")
+        Util.mkdir(out_path)
+        tar.extractall(path=out_path)
