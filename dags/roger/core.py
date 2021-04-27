@@ -215,14 +215,14 @@ class Util:
         return sorted(glob.glob(concepts_file_path))
 
     @staticmethod
-    def dug_input_files_path(name):
-        path = ROGER_DATA_DIR / "dug" / "input_files"
+    def dug_input_files_path(name) -> pathlib.Path:
+        path = ROGER_DATA_DIR / "dug" / "input_files" / name
         if not path.exists():
             log.info(f"Input file path: {path} does not exist, creating")
             path.mkdir(parents=True, exist_ok=True)
         else:
             log.info(f"Input file path: {path} already exists")
-        return str(path)
+        return path
 
     @staticmethod
     def mkdir(path):

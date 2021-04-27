@@ -728,5 +728,4 @@ class DugUtil():
         log.info(f"Unzipping {zip_file_path}")
         tar = tarfile.open(zip_file_path)
         out_path = Util.dug_input_files_path("db_gap/")
-        Util.mkdir(out_path)
         tar.extractall(path=out_path)
