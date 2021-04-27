@@ -50,10 +50,15 @@ class Dug:
             ontology_helper = OntologyHelper(url=annotation_config["ontology_metadata"])
 
             redis_config = {
-                'host': self.config.get('redisgraph', {}).get('host'),
-                'port': self.config.get('redisgraph', {}).get('port'),
-                'password': self.config.get('redisgraph', {}).get('password')
+                # 'host': self.config.get('redisgraph', {}).get('host'),
+                # 'port': self.config.get('redisgraph', {}).get('port'),
+                # 'password': self.config.get('redisgraph', {}).get('password')
+                'host': os.getenv('REDIS_HOST'),
+                'port': os.getenv('REDIS_PORT', 6379),
+                'password': os.getenv('REDIS_PASSWORD'),
+
             }
+
             Dug.cached_session = CachedSession(cache_name='annotator',
                                                 backend='redis',
                                                 connection=redis.StrictRedis(**redis_config))
@@ -723,8 +728,7 @@ class DugUtil():
     @staticmethod
     def extract_dbgap_zip_files(config=None, to_string=False):
 
-        data_path = DUG_DATA_DIR / 'dd_xml_data'
-        zip_file_path = data_path / 'bdc_dbgap_data_dicts.tar.gz'
+        zip_file_path = DUG_DATA_DIR / 'dd_xml_data' / 'bdc_dbgap_data_dicts.tar.gz'
         log.info(f"Unzipping {zip_file_path}")
         tar = tarfile.open(zip_file_path)
         out_path = Util.dug_input_files_path("db_gap/")
