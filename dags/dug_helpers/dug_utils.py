@@ -2,7 +2,7 @@ import traceback
 
 from dug.annotate import DugAnnotator, Annotator, Normalizer, OntologyHelper, Preprocessor, SynonymFinder, ConceptExpander
 from dug.parsers import DugConcept, DugElement
-from dug.core import Search, get_parser, Crawler
+from dug.core import Search, get_parser, Crawler, get_plugin_manager
 from dug_helpers import DUG_DATA_DIR
 from roger.roger_util import get_logger
 from roger.Config import get_default_config as get_config
@@ -129,7 +129,8 @@ class Dug:
         :param parsable_files: Files to parse.
         :return: None.
         """
-        parser = get_parser(parser_name)
+        dug_plugin_manager = get_plugin_manager()
+        parser = get_parser(dug_plugin_manager.hook, parser_name)
         output_base_path = Util.dug_annotation_path('')
         log.info("Parsing files")
         for file in parsable_files:
