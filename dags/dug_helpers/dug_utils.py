@@ -734,5 +734,5 @@ class DugUtil():
         zip_file_path = DUG_DATA_DIR / 'dd_xml_data' / 'bdc_dbgap_data_dicts.tar.gz'
         log.info(f"Unzipping {zip_file_path}")
         tar = tarfile.open(zip_file_path)
-        out_path = Util.dug_input_files_path("db_gap/")
+        out_path = Util.dug_input_files_path("db_gap")
         tar.extractall(path=out_path)

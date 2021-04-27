@@ -244,7 +244,7 @@ class Util:
     @staticmethod
     def dug_dd_xml_path():
         """ Topmed source files"""
-        return os.path.join(Util.dug_input_files_path(''), 'db_gap')
+        return Util.dug_input_files_path('db_gap')
 
     @staticmethod
     def get_files_recursive(file_name_filter, current_dir):
@@ -261,7 +261,7 @@ class Util:
 
     @staticmethod
     def dug_dd_xml_objects():
-        file_path = pathlib.Path(Util.dug_dd_xml_path())
+        file_path = Util.dug_dd_xml_path()
         files = Util.get_files_recursive(lambda file_name: not file_name.startswith('._') and file_name.endswith('.xml'), file_path)
         return sorted([str(f) for f in files])
 
