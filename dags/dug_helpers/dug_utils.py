@@ -1,23 +1,25 @@
-import traceback
-
-from dug.annotate import DugAnnotator, Annotator, Normalizer, OntologyHelper, Preprocessor, SynonymFinder, ConceptExpander
-from dug.parsers import DugConcept, DugElement
-from dug.core import Search, get_parser, Crawler, get_plugin_manager
-from dug_helpers import DUG_DATA_DIR
-from roger.roger_util import get_logger
-from roger.Config import get_default_config as get_config
-from requests_cache import CachedSession
-import os
-import re
-from pathlib import Path
-from roger.core import Util
-from io import StringIO
 import hashlib
 import logging
+import os
+import re
+import tarfile
+import traceback
+from functools import reduce
+from io import StringIO
+from pathlib import Path
+
 import dug.tranql as tql
 import redis
-import tarfile
-from functools import reduce
+from dug.annotate import DugAnnotator, Annotator, Normalizer, OntologyHelper, Preprocessor, SynonymFinder, \
+    ConceptExpander
+from dug.core import Search, get_parser, Crawler, get_plugin_manager
+from dug.parsers import DugConcept, DugElement, FileParser
+from requests_cache import CachedSession
+
+from dug_helpers import DUG_DATA_DIR
+from roger.Config import get_default_config as get_config
+from roger.core import Util
+from roger.roger_util import get_logger
 
 log = get_logger()
 
@@ -130,7 +132,7 @@ class Dug:
         :return: None.
         """
         dug_plugin_manager = get_plugin_manager()
-        parser = get_parser(dug_plugin_manager.hook, parser_name)
+        parser: FileParser = get_parser(dug_plugin_manager.hook, parser_name)
         output_base_path = Util.dug_annotation_path('')
         log.info("Parsing files")
         for file in parsable_files:
@@ -153,7 +155,7 @@ class Dug:
             # create an empty elements file. This also creates output dir if it doesn't exist.
             log.debug(f"Creating empty file:  {elements_file_path}/element_file.json")
             Util.write_object({}, os.path.join(elements_file_path, 'element_file.json'))
-            crawler.elements = parser.parse(file)
+            crawler.elements = parser(file)
 
             # @TODO propose for Dug to make this a crawler class init parameter(??)
             crawler.crawlspace = elements_file_path
