@@ -798,8 +798,13 @@ class BulkLoad:
         state['called_times'] = called_x_times
 
     def insert (self):
-        redisgraph = self.config.get('redisgraph', {})
-        bulk_loader = self.config.get('bulk_loader', {})
+
+        redisgraph = {
+            'host': os.getenv('REDIS_HOST'),
+            'port': os.getenv('REDIS_PORT', 6379),
+            'password': os.getenv('REDIS_PASSWORD'),
+            'graph': os.getenv('REDIS_GRAPH'),
+        }
         nodes = sorted(glob.glob (Util.bulk_path ("nodes/**.csv*")))
         edges = sorted(glob.glob (Util.bulk_path ("edges/**.csv*")))
         graph = redisgraph['graph']
