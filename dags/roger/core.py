@@ -812,7 +812,7 @@ class BulkLoad:
 
         try:
             log.info (f"deleting graph {graph} in preparation for bulk load.")
-            db = self.get_redisgraph (redisgraph)
+            db = self.get_redisgraph()
             db.redis_graph.delete ()
         except redis.exceptions.ResponseError:
             log.info ("no graph to delete")
@@ -843,15 +843,18 @@ class BulkLoad:
             log.error(f"Unexpected {e.__class__.__name__}: {e}")
             raise
 
-    def get_redisgraph(self, redisgraph):
-        return RedisGraph (host=redisgraph['host'],
-                           port=redisgraph['port'],
-                           password=redisgraph.get('password', ''),
-                           graph=redisgraph['graph'])
+    def get_redisgraph(self):
+        return RedisGraph(
+            host=os.getenv('REDIS_HOST'),
+            port=os.getenv('REDIS_PORT', 6379),
+            password=os.getenv('REDIS_PASSWORD'),
+            graph=os.getenv('REDIS_GRAPH'),
+
+        )
     
-    def validate (self):
-        redisgraph = self.config.get('redisgraph', {})
-        db = self.get_redisgraph (redisgraph)
+    def validate(self):
+
+        db = self.get_redisgraph()
         validation_queries = config.get('validation', {}).get('queries', [])
         for key, query in validation_queries.items ():
             text = query['query']
@@ -863,7 +866,8 @@ class BulkLoad:
                 db.query (instance)
                 duration = Util.current_time_in_millis () - start
                 log.info (f"Query {key}:{name} ran in {duration}ms: {instance}") 
-            
+
+
 class Roger:
     """ Consolidate Roger functionality for a cleaner interface. """
 

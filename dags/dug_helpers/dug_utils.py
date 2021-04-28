@@ -52,13 +52,9 @@ class Dug:
             ontology_helper = OntologyHelper(url=annotation_config["ontology_metadata"])
 
             redis_config = {
-                # 'host': self.config.get('redisgraph', {}).get('host'),
-                # 'port': self.config.get('redisgraph', {}).get('port'),
-                # 'password': self.config.get('redisgraph', {}).get('password')
                 'host': os.getenv('REDIS_HOST'),
                 'port': os.getenv('REDIS_PORT', 6379),
                 'password': os.getenv('REDIS_PASSWORD'),
-
             }
 
             Dug.cached_session = CachedSession(cache_name='annotator',
