@@ -59,8 +59,31 @@ Fetches KGX files according to a data version selecting the set of files to use.
 Merges nodes duplicated across files aggregating properties from all nodes
 ### Schema
 Identify and record the schema (properties) of every edge and node type.
+Schema records the type resolved for each property of a node/edge. The **Schema** step generates category 
+schema file for node schema and predicate schema for edges. In these files properties are collected and 
+scoped based on type of the edges and nodes found. For instances where properties do not have consistent data 
+type across a given scope, the following rule is used to resolve to final data type: 
+
+* If the property has fluctuating type among a boolean, a float or an Integer in the same scope, 
+it's final data type would be a string. 
+* If conflicting property is ever a string but never a list in the scope, it's final data type will be string.
+* If conflicting property is ever a list , it's final data type will be a list. 
+
+Using this approach attributes will be casted based on the resolution set here when loading to the graph database
+in subsequent steps. 
 ### Bulk Create
 Create bulk load CSV files conforming to the Redisgraph Bulk Loader's requirements.
+**Bulk create** uses the Schema  generated in **Schema** step to generate csv headers 
+([redis csv headers](https://github.com/RedisGraph/redisgraph-bulk-loader#input-schemas)) with
+the assumed types . Currently redis bulk loader requires every column to have a value. 
+To address this issue, this step groups the entities being processed (edges/nodes)
+based on attributes that have values. Then these groups are written into separate csv files. Nodes 
+are written as csv(s) under `<roger-data-dir>/bulk/nodes` and edges under  `<roger-data-dir>/bulk/edges`. 
+Each csv with these folders has the following naming convention 
+`<entity-type>.csv-<group_index>-<uniqueness-index>`.
+When populating the CSV with values, the appropriate casting is done on the properties to normalize
+them to the data types defined in the **Schema** step. 
+
 ### Bulk Load
 Use the bulk loader to load Redisgraph logging statistics on each type of loaded object.
 ### Validate
@@ -497,9 +520,117 @@ python tranql_translator.py
 The Airflow interface shows the workflow:
 ![image](https://user-images.githubusercontent.com/306971/97787955-b968f680-1b8b-11eb-86cc-4d93842eafd3.png)
 
-Use the Trigger icon to run the workflow immediatley.
+Use the Trigger icon to run the workflow immediately.
 
 
+### Running Roger in Kubernetes
+
+Roger supports installing on kubernetes via [Helm](helm.sh).
+
+### Prerequisites
+
+#### 1. Setup persistence volume
+        
+   Create a pvc(roger-data-pvc) for storing roger Data with the following definition.
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: roger-data-pvc
+spec:
+  storageClassName: <storage-class>
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: <size>
+```
+
+Then run :
+
+```shell script
+kubectl -n <NAMESPACE> create -f pvc.yaml 
+```
+
+#### 2. Create git ssh secrets:
+
+There are two secrets for airflow required for Git syncronization.
+
+This is used by `airflow.airflow.config.AIRFLOW__KUBERNETES__GIT_SSH_KEY_SECRET_NAME`
+ ```yaml
+    kind: Secret
+    apiVersion: v1
+    metadata:
+      name: airflow-secrets
+    data:
+      gitSshKey: >-
+        <private-key-base64-encoded>
+    type: Opaque
+ ```
+
+This used by `airflow.dags.git.secret`
+
+```yaml
+kind: Secret
+apiVersion: v1
+metadata:
+  name: airflow-git-keys 
+data:
+  id_rsa: <private-key-base64-encoded>    
+  id_rsa.pub: <public-key-base64-encoded>
+  known_hosts: <known-hosts>
+type: Opaque
+```
+
+### Installing 
+
+#### 1. Init helm dependencies 
+
+Navigate to `roger/bin` dir, and run `roger init`. This will initialize helm dependencies for  [airflow helm repo](https://airflow-helm.github.io/charts))
+and [redis helm repo](https://github.com/bitnami/charts/tree/master/bitnami/redis#redis).
+```shell script
+cd bin/
+export NAMESPACE=<your_namespace, default>
+export RELEASE_NAME=<install_name, airflow>
+export CLUSTER_DOMAIN=cluster.local 
+./roger init
+```
 
 
+#### 2. Installing  
 
+Run and flow the notes to access the servers.
+```shell script
+./roger start 
+```
+
+#### 3. Run Roger workflow
+
+In the Notes a port forward command should be printed. Use that to 
+access airflow UI and run the following steps to run Roger workflow. 
+
+The Airflow interface shows the workflow:
+![image](https://user-images.githubusercontent.com/45075777/104513185-403f4400-55bd-11eb-9142-cbfd7879504b.png)
+
+Press Trigger to get to the following page:
+![image](https://user-images.githubusercontent.com/45075777/104513451-b04dca00-55bd-11eb-837c-65d20d697fff.png)
+
+Enter the configuration parameters to get to Redis cluster installed in step 2:
+```json
+{"redisgraph": {"host": "<redis-master-service-name>", "port": 6379 , "graph" : "graph-name" }}
+```
+And run work flow. 
+
+
+#### 4. Other Commands:
+
+To shutdown and remove the setup from k8s:
+```shell script
+./roger stop 
+```
+
+To restart the setup:
+```shell script
+./roger restart
+```

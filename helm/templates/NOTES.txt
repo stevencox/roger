@@ -1,0 +1,21 @@
+Installed {{ .Release.Namespace }}
+
+To access Tranql web use the following command:
+
+>  export TRANQL_PORT={{ .Values.tranql.port }} && kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "roger.fullname" . }}-tranql-service $TRANQL_PORT
+
+Browse to http://localhost:{{ .Values.tranql.port }}
+
+
+To access Airflow web UI use the following command:
+
+>  export AIRFLOW_UI_PORT={{ .Values.airflow.web.service.externalPort }} &&  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "roger.fullname" . }}-web $AIRFLOW_UI_PORT
+
+Browse to http://localhost:{{ .Values.airflow.web.service.externalPort }}
+
+To access Redis data store use the following command
+
+> export REDIS_PORT={{ .Values.redis.redisPort }} && kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "roger.fullname" . }}-redis-master $REDIS_PORT
+
+On another terminal
+   > redis-cli -h 127.0.0.1 -p $REDIS_PORT {{ if .Values.redis.usePassword }} -a {{ .Values.redis.password }}{{- end }}

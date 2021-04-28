@@ -1,52 +1,6 @@
+#!/usr/bin/env bash
 #set -x
 set -e
-
-namespace=${NAMESPACE:-scox}
-release=redisgraph
-image_repository=redislabs/redisgraph
-image_tag=edge
-
-# https://github.com/bitnami/charts/tree/master/bitnami/redis
-init () {
-    helm repo add bitnami https://charts.bitnami.com/bitnami
-}
-start () {
-    helm install $release \
-	 --set image.repository=$image_repository \
-	 --set image.tag=$image_tag \
-	 --set redis.command="redis-server" \
-	 --set redis.args="--loadmodule /usr/lib/redis/modules/redisgraph.so" \
-	 --set master.command="redis-server --loadmodule /usr/lib/redis/modules/redisgraph.so" \
-	 --set slave.command="redis-server --loadmodule /usr/lib/redis/modules/redisgraph.so" \
-	 --namespace=$namespace \
-	 bitnami/redis
-}
-start () {
-    helm install $release \
-	 --set image.repository=$image_repository \
-	 --set image.tag=$image_tag \
-	 --namespace=$namespace \
-	 bitnami/redis
-}
-stop () {
-    helm delete $release \
-	 --namespace=$namespace
-}
-restart () {
-    stop
-    start
-}
-status () {
-    kubectl --namespace=$namespace get pods | grep $release
-    export REDIS_PASSWORD=$(kubectl get secret --namespace $namespace redisgraph -o jsonpath="{.data.redis-password}" | base64 --decode)
-}
-client () {
-    #kubectl port-forward --namespace $namespace svc/redisgraph-master 6380:6379 &
-    redis-cli -h 127.0.0.1 -p 6380 -a $REDIS_PASSWORD
-}
-#----------------------------
-
-
 
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"

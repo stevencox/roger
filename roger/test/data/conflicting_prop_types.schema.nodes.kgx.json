@@ -1,0 +1,52 @@
+{
+  "nodes":[
+    {
+      "id": "node_1",
+      "category": ["named_thing"],
+      "list_vs_str": [],
+      "list_vs_int": [],
+      "list_vs_bool": [],
+      "list_vs_float": [],
+      "str_vs_float": "",
+      "str_vs_bool": "",
+      "str_vs_int": "",
+      "int_vs_bool": 0,
+      "int_vs_float": 0,
+      "float_vs_bool": 0
+    },{
+      "id": "node_1",
+      "category": ["named_thing"],
+      "list_vs_str": "",
+      "list_vs_int": 0,
+      "list_vs_bool": true,
+      "list_vs_float": 0.0,
+      "str_vs_float": 0.0,
+      "str_vs_bool": false,
+      "str_vs_int": 0,
+      "int_vs_bool": true,
+      "int_vs_float": 0.0,
+      "float_vs_bool": true
+
+    }
+  ],
+  "edges":[],
+  "expected_schema": {
+    "category-schema.json": {
+      "named_thing": {
+      "id": "str",
+      "category": "list",
+      "list_vs_str": "list",
+      "list_vs_int": "list",
+      "list_vs_bool": "list",
+      "list_vs_float": "list",
+      "str_vs_float": "str",
+      "str_vs_bool": "str",
+      "str_vs_int": "str",
+      "int_vs_bool": "str",
+      "int_vs_float": "str",
+      "float_vs_bool": "str"
+      }
+    },
+    "predicate-schema.json": {}
+  }
+}

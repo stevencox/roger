@@ -1,37 +1,23 @@
 versions:
-- edgeFiles:
- # - biolink_kgx-edge-v0.1.json
-  - chembio_kgx-edge-v0.1.json
-  - chemical_normalization-edge-v0.1.json
-  - cord19-phenotypes-edge-v0.1.json
-#  - cord19-scibite-edge-v0.1.json
-#  - cord19-scigraph-edge-v0.1.json
-  - ctd-edge-v0.1.json
-  - foodb-edge-v0.1.json
-#  - kegg-edge-v0.1.json
-  - mychem-edge-v0.1.json
-#  - panther-edge-v0.1.json
-  - pharos-edge-v0.1.json
-  - topmed-edge-v0.1.json
-  nodeFiles:
-  - biolink_kgx-node-v0.1.json
-  - chembio_kgx-node-v0.1.json
-  - chemical_normalization-node-v0.1.json
-  - cord19-phenotypes-node-v0.1.json
-  - cord19-scibite-node-v0.1.json
-  - cord19-scigraph-node-v0.1.json
-  - ctd-node-v0.1.json
-  - foodb-node-v0.1.json
- # - kegg-node-v0.1.json
-  - mychem-node-v0.1.json
-  - panther-node-v0.1.json
-  - pharos-node-v0.1.json
-  - topmed-node-v0.1.json
-  version: v0.1
+- files:
+  - biolink.json
+  - ctd.json
+  - gtopdb.json
+  - hetio.json
+  - hgnc.json
+  - hmdb.json
+  - kegg.json
+  - mychem.json
+  - ontological-hierarchy.json
+  - panther.json
+  - foodb.json
+  - pharos.json
+  - intact.json
+  - human-goa.json
+  - uberongraph.json
+  - viral-proteome.json
+  version: v1.0
 - version: test
-  edgeFiles:
-   - cord19-phenotypes-edge-v0.1.json
-   - chembio_kgx-edge-v0.1.json
-  nodeFiles:
-   - cord19-phenotypes-node-v0.1.json
-   - chembio_kgx-node-v0.1.json
+  files:
+  - panther.json
+
