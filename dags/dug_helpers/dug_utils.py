@@ -78,9 +78,7 @@ class Dug:
                 key: tql.QueryFactory(queries_config[key], source)
                 for key in queries_config
             }
-            tranql_host = os.getenv('TRANQL_API_HOST')
-            tranql_port = os.getenv('TRANQL_API_PORT')
-            tranql_url = f"http://{tranql_host}:{tranql_port}/tranql/query?dynamic_id_resolution=true&asynchronous=false"
+            tranql_url = os.getenv("TRANQL_ENDPOINT")
             Dug.tranqlizer = ConceptExpander(**{
                 "url": tranql_url,
                 "min_tranql_score": indexing_config["tranql_min_score"]
