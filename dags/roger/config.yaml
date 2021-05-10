@@ -58,14 +58,11 @@ indexing:
     "anat_to_pheno": ["anatomical_entity", "phenotypic_feature"]
   tranql_endpoint: "http://tranql:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
 
-elastic_search:
+elasticsearch:
   host: elasticsearch
   username: elastic
-  # temporary
   password: ""
   nboost_host: ""
-
-
 
 validation:
   queries:

@@ -7,13 +7,15 @@ redisgraph:
 
 logging:
   level: DEBUG
-  format: '[%(name)s][%(filename)s][%(funcName)20s] %(levelname)s: %(message)s'
+  format: '[%(name)s][%(filename)s][%(lineno)d][%(funcName)20s] %(levelname)s: %(message)s'
 
-data_root: "/Users/schreepc/Projects/helxplatform/roger/roger/test/data"
-dug_data_root: dug_helpers/dug_data/topmed_data
+data_root: roger/data
+dug_data_root: dug_helpers/dug_data/
 base_data_uri: https://stars.renci.org/var/kgx_data/trapi-1.0/
+
 kgx:
   biolink_model_version: 1.5.0
+  dataset_version: v1.0
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:
@@ -33,11 +35,11 @@ annotation:
   normalizer: "https://nodenormalization-sri.renci.org/get_normalized_nodes?curie="
   synonym_service: "https://onto.renci.org/synonyms/"
   ontology_metadata: "https://api.monarchinitiative.org/api/ontology/term/"
-  # The following are neo4j params that would not be used
-  # need to remove them from annotator constructor.
-  db_url: ""
-  username: ""
-  password: ""
+  preprocessor:
+    debreviator:
+      BMI: "body mass index"
+    stopwords: "the"
+  ontology_greenlist: ["PATO", "CHEBI", "MONDO", "UBERON", "HP", "MESH", "UMLS"]
 
 indexing:
   variables_index: "variables_index"
@@ -60,7 +62,7 @@ elasticsearch:
   host: elasticsearch
   username: elastic
   # temporary
-  password: "13431"
+  password: ""
   nboost_host: ""
 
 

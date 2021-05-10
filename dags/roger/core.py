@@ -570,6 +570,7 @@ class BiolinkModel:
         leaves = list(self.find_biolink_leaves(names))
         return leaves[0]
 
+
 class BulkLoad:
     """ Tools for creating a Redisgraph bulk load dataset. """
     def __init__(self, biolink, config=None):
@@ -713,6 +714,7 @@ class BulkLoad:
         :param schema: The schema (nodes or predicates) containing identifiers.
         :param state: Track state of already written objects to avoid duplicates.
         """
+
         os.makedirs (bulk_path, exist_ok=True)
         processed_objects_id = state.get('processed_id', set())
         called_x_times = state.get('called_times', 0)
@@ -805,6 +807,7 @@ class BulkLoad:
             'password': os.getenv('REDIS_PASSWORD'),
             'graph': os.getenv('REDIS_GRAPH'),
         }
+        redisgraph = self.config.redisgraph
         nodes = sorted(glob.glob (Util.bulk_path ("nodes/**.csv*")))
         edges = sorted(glob.glob (Util.bulk_path ("edges/**.csv*")))
         graph = redisgraph['graph']
@@ -815,7 +818,7 @@ class BulkLoad:
             db = self.get_redisgraph()
             db.redis_graph.delete ()
         except redis.exceptions.ResponseError:
-            log.info ("no graph to delete")
+            log.info("no graph to delete")
             
         log.info (f"bulk loading graph: {graph}")        
         args = []
@@ -845,11 +848,10 @@ class BulkLoad:
 
     def get_redisgraph(self):
         return RedisGraph(
-            host=os.getenv('REDIS_HOST'),
-            port=os.getenv('REDIS_PORT', 6379),
-            password=os.getenv('REDIS_PASSWORD'),
-            graph=os.getenv('REDIS_GRAPH'),
-
+            host=self.config.redisgraph.host,
+            port=self.config.redisgraph.port,
+            password=self.config.redisgraph.password,
+            graph=self.config.redisgraph.graph,
         )
     
     def validate(self):

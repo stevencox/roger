@@ -9,7 +9,7 @@ requests<2.24.0
 pytest==6.2.2
 PyYAML==5.3.1
 git+git://github.com/biolink/biolink-model-toolkit@0.4.0#egg=bmt
-git+git://github.com/helxplatform/dug@feature/roger-handling#egg=dug
+git+git://github.com/helxplatform/dug@feature/dug-factory#egg=dug
 elasticsearch==7.11.0
 biolinkml>=1.5.10
 orjson
