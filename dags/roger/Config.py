@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import warnings
 from dataclasses import dataclass, field
@@ -180,14 +179,9 @@ class RogerConfig(DictLike):
         with file_path.open() as config_file:
             file_data = yaml.load(config_file, Loader=yaml.FullLoader)
 
-        logger = logging.getLogger(__name__)
-        logger.debug(f"File data: {file_data}")
-
         override_data = cls.get_override_data(cls.OS_VAR_PREFIX)
-        logger.debug(f"Override data: {override_data}")
 
         combined_data = cls.merge_dicts(file_data, override_data)
-        logger.debug(f"Combined data: {combined_data}")
 
         return RogerConfig(**combined_data)
 

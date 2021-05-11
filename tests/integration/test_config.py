@@ -10,6 +10,7 @@ def test_config_factory():
     conf_file = TEST_DATA_DIR / 'sample_config.yaml'
     with conf_file.open() as opened_file:
         expected = yaml.load(opened_file)
+        expected['dag_run'] = None  # Config tracks dag run, not from YAML
 
     conf = RogerConfig.factory(str(conf_file))
     actual = conf.dict
