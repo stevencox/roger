@@ -1,137 +1,94 @@
-from dug.annotate import DugAnnotator, Annotator, Normalizer, OntologyHelper, Preprocessor, SynonymFinder, ConceptExpander
-from dug.parsers import DugConcept, DugElement
-from dug.core import Search, get_parser, Crawler
-from roger.roger_util import get_logger
-from roger.Config import get_default_config as get_config
-from requests_cache import CachedSession
-import os
-import re
-from pathlib import Path
-from roger.core import Util
-from io import StringIO
 import hashlib
 import logging
-import dug.tranql as tql
-import redis
+import os
+import re
 import tarfile
+import traceback
 from functools import reduce
+from io import StringIO
+from pathlib import Path
+
+from dug.core import get_parser, get_plugin_manager, DugConcept
+from dug.core.factory import DugFactory
+from dug.core.annotate import DugAnnotator, ConceptExpander
+from dug.core.crawler import Crawler
+from dug.core.parsers import Parser, DugElement
+from dug.core.search import Search
+
+from dug_helpers import DUG_DATA_DIR
+from roger.Config import RogerConfig
+from roger.core import Util
+from roger.roger_util import get_logger
 
 log = get_logger()
 
 
 class Dug:
-    annotator = None
-    search_obj = None
-    tranqlizer = None
-    tranql_queries = None
-    config = None
-    cached_session = None
-    VARIABLES_INDEX = None
-    CONCEPTS_INDEX = None
-    KG_INDEX = None
 
-    def __init__(self, config=None, to_string=True):
-        if not config:
-            Dug.config = get_config()
+    def __init__(self, config: RogerConfig, to_string=True):
+        self.config = config
+        dug_conf = config.to_dug_conf()
+        self.factory = DugFactory(dug_conf)
+
+        self.cached_session = self.factory.build_http_session()
+
         if to_string:
             self.log_stream = StringIO()
-            self.string_handler = logging.StreamHandler (self.log_stream)
+            self.string_handler = logging.StreamHandler(self.log_stream)
             log.addHandler(self.string_handler)
-        Dug.config = config
-        if not Dug.annotator:
-            annotation_config = self.config.get("annotation")
-            preprocessor = Preprocessor(**annotation_config["preprocessor"])
-            annotator = Annotator(url=annotation_config["annotator"])
-            normalizer = Normalizer(url=annotation_config["normalizer"])
-            synonym_finder = SynonymFinder(url=annotation_config["synonym_service"])
-            ontology_helper = OntologyHelper(url=annotation_config["ontology_metadata"])
 
-            redis_config = {
-                'host': self.config.get('redisgraph', {}).get('host'),
-                'port': self.config.get('redisgraph', {}).get('port'),
-                'password': self.config.get('redisgraph', {}).get('password')
-            }
-            Dug.cached_session = CachedSession(cache_name='annotator',
-                                                backend='redis',
-                                                connection=redis.StrictRedis(**redis_config))
+        self.annotator: DugAnnotator = self.factory.build_annotator()
 
-            Dug.annotator = DugAnnotator(
-                preprocessor=preprocessor,
-                annotator=annotator,
-                normalizer=normalizer,
-                synonym_finder=synonym_finder,
-                ontology_helper=ontology_helper
-            )
+        self.tranqlizer: ConceptExpander = self.factory.build_tranqlizer()
 
-        if not Dug.tranqlizer:
-            graph_name = Dug.config["redisgraph"]["graph"]
-            source = f"redis:{graph_name}"
-            indexing_config = self.config.get('indexing')
-            queries_config = indexing_config["queries"]
-            Dug.tranql_queries = {
-                key: tql.QueryFactory(queries_config[key], source)
-                for key in queries_config
-            }
-            Dug.tranqlizer = ConceptExpander(**{
-                "url": indexing_config["tranql_endpoint"],
-                "min_tranql_score": indexing_config["tranql_min_score"]
-            })
+        graph_name = self.config["redisgraph"]["graph"]
+        source = f"redis:{graph_name}"
+        self.tranql_queries: dict = self.factory.build_tranql_queries(source)
 
-        if not Dug.search_obj:
-            # Dug search expects these to be set as os envrion
-            # Elastic config
-            elastic_conf = config.get("elastic_search")
-            os.environ['ELASTIC_API_HOST'] = elastic_conf.get("host")
-            os.environ['ELASTIC_USERNAME'] = elastic_conf.get("username")
-            os.environ['ELASTIC_PASSWORD'] = elastic_conf.get("password")
-            os.environ['NBOOST_API_HOST'] = elastic_conf.get("nboost_host")
-            indexing_config = config.get('indexing')
-            Dug.VARIABLES_INDEX = indexing_config.get('variables_index')
-            Dug.CONCEPTS_INDEX = indexing_config.get('concepts_index')
-            Dug.KG_INDEX = indexing_config.get('kg_index')
-            Dug.search_obj = Search(os.environ['ELASTIC_API_HOST'])
+        indexing_config = config.indexing
+        self.variables_index = indexing_config.get('variables_index')
+        self.concepts_index = indexing_config.get('concepts_index')
+        self.kg_index = indexing_config.get('kg_index')
+
+        self.search_obj: Search = self.factory.build_search_obj([
+            self.variables_index,
+            self.concepts_index,
+            self.kg_index,
+        ])
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type or exc_val or exc_tb:
+            traceback.print_exc()
             log.error(f"{exc_val} {exc_val} {exc_tb}")
+            log.exception("Got an exception")
 
-    @staticmethod
-    def load_tagged(file):
-        log.info(f"Loading file --> {file}")
-        return Dug.annotator.load_tagged_variables(file)
-
-    @staticmethod
-    def load_dd_xml(file):
-        log.info(f"Loading DD xml file --> {file}")
-        return Dug.annotator.load_data_dictionary(file)
-
-    @staticmethod
-    def annotate_files(parser_name, parsable_files):
+    def annotate_files(self, parser_name, parsable_files):
         """
         Annotates a Data element file using a Dug parser.
         :param parser_name: Name of Dug parser to use.
         :param parsable_files: Files to parse.
         :return: None.
         """
-        parser = get_parser(parser_name)
+        dug_plugin_manager = get_plugin_manager()
+        parser: Parser = get_parser(dug_plugin_manager.hook, parser_name)
         output_base_path = Util.dug_annotation_path('')
         log.info("Parsing files")
-        for file in parsable_files:
+        for parse_file in parsable_files:
             log.debug("Creating Dug Crawler object")
             crawler = Crawler(
-                crawl_file=file,
+                crawl_file=parse_file,
                 parser=parser,
-                annotator=Dug.annotator,
+                annotator=self.annotator,
                 tranqlizer='',
                 tranql_queries=[],
-                http_session= Dug.cached_session
+                http_session=self.cached_session
             )
 
             # configure output space.
-            current_file_name = '.'.join(os.path.basename(file).split('.')[:-1])
+            current_file_name = '.'.join(os.path.basename(parse_file).split('.')[:-1])
             elements_file_path = os.path.join(output_base_path, current_file_name)
             elements_file_name = 'elements.pickle'
             concepts_file_name = 'concepts.pickle'
@@ -139,10 +96,15 @@ class Dug:
             # create an empty elements file. This also creates output dir if it doesn't exist.
             log.debug(f"Creating empty file:  {elements_file_path}/element_file.json")
             Util.write_object({}, os.path.join(elements_file_path, 'element_file.json'))
-            crawler.elements = parser.parse(file)
+            log.debug(parse_file)
+            log.debug(parser)
+            elements = parser(parse_file)
+            log.debug(elements)
+            crawler.elements = elements
 
             # @TODO propose for Dug to make this a crawler class init parameter(??)
             crawler.crawlspace = elements_file_path
+            log.debug(f"Crawler annotator: {crawler.annotator}")
             crawler.annotate_elements()
 
             # Extract out the concepts gotten out of annotation
@@ -151,7 +113,7 @@ class Dug:
             elements = crawler.elements
 
             # Write pickles of objects to file
-            log.info(f"Parsed and annotated: {file}")
+            log.info(f"Parsed and annotated: {parse_file}")
             elements_out_file = os.path.join(elements_file_path, elements_file_name)
             Util.write_object(elements, elements_out_file)
             log.info(f"Pickled annotated elements to : {elements_file_path}/{elements_file_name}")
@@ -159,14 +121,14 @@ class Dug:
             Util.write_object(non_expanded_concepts, concepts_out_file)
             log.info(f"Pickled annotated concepts to : {elements_file_path}/{concepts_file_name}")
 
-    @staticmethod
-    def make_edge (subj,
-                   obj,
-                   predicate = 'biolink:association',
-                   predicate_label= 'association',
-                   relation = 'biolink:association',
-                   relation_label = 'association'
-    ):
+    def make_edge(self,
+                  subj,
+                  obj,
+                  predicate='biolink:association',
+                  predicate_label='association',
+                  relation='biolink:association',
+                  relation_label='association'
+                  ):
         """
         Create an edge between two nodes.
 
@@ -181,18 +143,17 @@ class Dug:
         """
         edge_id = hashlib.md5(f'{subj}{predicate}{obj}'.encode('utf-8')).hexdigest()
         return {
-            "subject"     : subj,
-            "predicate"   : predicate,
+            "subject": subj,
+            "predicate": predicate,
             "predicate_label": predicate_label,
             "id": edge_id,
-            "relation"  :  relation,
+            "relation": relation,
             "relation_label": relation_label,
-            "object"      : obj,
-            "provided_by" : "renci.bdc.semanticsearch.annotator"
+            "object": obj,
+            "provided_by": "renci.bdc.semanticsearch.annotator"
         }
 
-    @staticmethod
-    def convert_to_kgx_json(elements):
+    def convert_to_kgx_json(self, elements):
         """
         Given an annotated and normalized set of study variables,
         generate a KGX compliant graph given the normalized annotations.
@@ -219,14 +180,14 @@ class Dug:
                 })
                 written_nodes.add(study_id)
             """ connect the study and the variable. """
-            edges.append(Dug.make_edge(
+            edges.append(self.make_edge(
                 subj=element.id,
                 relation_label='part of',
                 relation='BFO:0000050',
                 obj=study_id,
                 predicate='biolink:part_of',
                 predicate_label='part of'))
-            edges.append(Dug.make_edge(
+            edges.append(self.make_edge(
                 subj=study_id,
                 relation_label='has part',
                 relation="BFO:0000051",
@@ -259,7 +220,7 @@ class Dug:
                 #
                 if identifier_object:
                     category = identifier_object.types
-                elif identifier.startswith("TOPMED.TAG:") :
+                elif identifier.startswith("TOPMED.TAG:"):
                     category = ["biolink:InformationContentEntity"]
                 else:
                     continue
@@ -270,14 +231,14 @@ class Dug:
                         "name": metadata.name
                     })
                     written_nodes.add(identifier)
-                edges.append(Dug.make_edge(
+                edges.append(self.make_edge(
                     subj=element.id,
                     relation='OBAN:association',
                     obj=identifier,
                     relation_label='association',
                     predicate='biolink:Association',
                     predicate_label='association'))
-                edges.append(Dug.make_edge(
+                edges.append(self.make_edge(
                     subj=identifier,
                     relation='OBAN:association',
                     obj=element.id,
@@ -286,8 +247,7 @@ class Dug:
                     predicate_label='association'))
         return graph
 
-    @staticmethod
-    def make_tagged_kg(elements):
+    def make_tagged_kg(self, elements):
         """ Make a Translator standard knowledge graph representing
         tagged study variables.
         :param variables: The variables to model.
@@ -320,7 +280,6 @@ class Dug:
             })
             """ Link ontology identifiers we've found for this tag via nlp. """
             for identifier, metadata in tag.identifiers.items():
-
                 node_types = list(metadata.types) if isinstance(metadata.types, str) else metadata.types
                 synonyms = metadata.synonyms if metadata.synonyms else []
                 nodes.append({
@@ -329,10 +288,10 @@ class Dug:
                     "category": node_types,
                     "synonyms": synonyms
                 })
-                edges.append(Dug.make_edge(
+                edges.append(self.make_edge(
                     subj=tag_id,
                     obj=identifier))
-                edges.append(Dug.make_edge(
+                edges.append(self.make_edge(
                     subj=identifier,
                     obj=tag_id))
 
@@ -367,14 +326,14 @@ class Dug:
                 "category": ["biolink:ClinicalModifier"]
             })
             """ Link to its study.  """
-            edges.append(Dug.make_edge(
+            edges.append(self.make_edge(
                 subj=variable_id,
                 predicate='biolink:part_of',
                 predicate_label='part of',
                 relation='BFO:0000050',
                 relation_label='part of',
                 obj=study_id))
-            edges.append(Dug.make_edge(
+            edges.append(self.make_edge(
                 subj=study_id,
                 predicate='biolink:has_part',
                 predicate_label='has part',
@@ -383,14 +342,14 @@ class Dug:
                 obj=variable_id))
 
             """ Link to its tag. """
-            edges.append(Dug.make_edge(
+            edges.append(self.make_edge(
                 subj=variable_id,
                 predicate='biolink:part_of',
                 predicate_label='part of',
                 relation='BFO:0000050',
                 relation_label='part of',
                 obj=tag_id))
-            edges.append(Dug.make_edge(
+            edges.append(self.make_edge(
                 subj=tag_id,
                 predicate='biolink:has_part',
                 predicate_label='has part',
@@ -399,8 +358,7 @@ class Dug:
                 obj=variable_id))
         return graph
 
-    @staticmethod
-    def index_elements(elements_file):
+    def index_elements(self, elements_file):
         log.info(f"Indexing {elements_file}...")
         elements = Util.read_object(elements_file)
         count = 0
@@ -411,18 +369,17 @@ class Dug:
             count += 1
             # Only index DugElements as concepts will be indexed differently in next step
             if not isinstance(element, DugConcept):
-                Dug.search_obj.index_element(element, index=Dug.VARIABLES_INDEX)
-            percent_complete = (count / total)* 100
+                self.search_obj.index_element(element, index=self.variables_index)
+            percent_complete = (count / total) * 100
             if percent_complete % 10 == 0:
                 log.info(f"{percent_complete} %")
         log.info(f"Done indexing {elements_file}.")
 
-    @staticmethod
-    def validate_indexed_elements(elements_file):
+    def validate_indexed_elements(self, elements_file):
         elements = [x for x in Util.read_object(elements_file) if not isinstance(x, DugConcept)]
         # Pick ~ 10 %
         sample_size = int(len(elements) * 0.1)
-        test_elements = elements[:sample_size] #random.choices(elements, k=sample_size)
+        test_elements = elements[:sample_size]  # random.choices(elements, k=sample_size)
         log.info(f"Picked {len(test_elements)} from {elements_file} for validation.")
         for element in test_elements:
             # Pick a concept
@@ -434,7 +391,7 @@ class Dug:
                 curie = concept.id
                 search_term = re.sub(r'[^a-zA-Z0-9_\ ]+', '', concept.name)
                 log.debug(f"Searching for Concept: {curie} and Search term: {search_term}")
-                all_elements_ids = Dug._search_elements(curie, search_term)
+                all_elements_ids = self._search_elements(curie, search_term)
                 present = element.id in all_elements_ids
                 if not present:
                     log.error(f"Did not find expected variable {element.id} in search result.")
@@ -448,10 +405,9 @@ class Dug:
                     f"{element.id} has no concepts annotated. Skipping validation for it."
                 )
 
-    @staticmethod
-    def _search_elements(curie, search_term):
-        response = Dug.search_obj.search_variables(
-            index=Dug.VARIABLES_INDEX,
+    def _search_elements(self, curie, search_term):
+        response = self.search_obj.search_variables(
+            index=self.variables_index,
             concept=curie,
             query=search_term,
             size=2000
@@ -463,8 +419,7 @@ class Dug:
             ids_dict += all_elements_ids
         return ids_dict
 
-    @staticmethod
-    def crawl_concepts(concepts, data_set_name):
+    def crawl_concepts(self, concepts, data_set_name):
         """
         Adds tranql KG to Concepts, terms grabbed from KG are also added as search terms
         :param concepts:
@@ -481,12 +436,12 @@ class Dug:
             crawl_file="",
             parser=None,
             annotator=None,
-            tranqlizer=Dug.tranqlizer,
-            tranql_queries= Dug.tranql_queries,
-            http_session= Dug.cached_session
+            tranqlizer=self.tranqlizer,
+            tranql_queries=self.tranql_queries,
+            http_session=self.cached_session
         )
         crawler.crawlspace = crawl_dir
-        counter= 0
+        counter = 0
         total = len(concepts)
         for concept_id, concept in concepts.items():
             counter += 1
@@ -494,46 +449,46 @@ class Dug:
             concept.set_search_terms()
             concept.set_optional_terms()
             concept.clean()
-            percent_complete = int((counter/total)*100)
+            percent_complete = int((counter / total) * 100)
             if percent_complete % 10 == 0:
                 log.info(f"{percent_complete}%")
         Util.write_object(obj=concepts, path=output_file)
 
-    @staticmethod
-    def index_concepts(concepts):
+    def index_concepts(self, concepts):
         log.info("Indexing Concepts")
         total = len(concepts)
         count = 0
         for concept_id, concept in concepts.items():
             count += 1
-            Dug.search_obj.index_concept(concept, index=Dug.CONCEPTS_INDEX)
+            self.search_obj.index_concept(concept, index=self.concepts_index)
             # Index knowledge graph answers for each concept
             for kg_answer_id, kg_answer in concept.kg_answers.items():
-                Dug.search_obj.index_kg_answer(concept_id=concept_id,
-                                       kg_answer=kg_answer,
-                                       index=Dug.KG_INDEX,
-                                       id_suffix=kg_answer_id)
-            percent_complete = int((count/total) * 100)
+                self.search_obj.index_kg_answer(
+                    concept_id=concept_id,
+                    kg_answer=kg_answer,
+                    index=self.kg_index,
+                    id_suffix=kg_answer_id
+                )
+            percent_complete = int((count / total) * 100)
             if percent_complete % 10 == 0:
                 log.info(f"{percent_complete} %")
         log.info("Done Indexing concepts")
 
-    @staticmethod
-    def validate_indexed_concepts(elements, concepts):
+    def validate_indexed_concepts(self, elements, concepts):
         """
         Validates linked concepts are searchable
         :param elements: Annotated dug elements
         :param concepts: Crawled (expanded) concepts
         :return:
         """
-        #1 . Find concepts with KG <= 10% of all concepts,
+        # 1 . Find concepts with KG <= 10% of all concepts,
         # <= because we might have no results for some concepts from tranql
-        size = int(len(concepts)*0.1)
-        sample_concepts = {key: value for key, value in concepts.items() if value.kg_answers }
+        sample_concepts = {key: value for key, value in concepts.items() if value.kg_answers}
         if len(concepts) == 0:
             log.info(f"No Concepts found.")
             return
-        log.info(f"Found only {len(sample_concepts)} Concepts with Knowledge graph out of {len(concepts)}. {(len(sample_concepts)/ len(concepts))*100} %")
+        log.info(
+            f"Found only {len(sample_concepts)} Concepts with Knowledge graph out of {len(concepts)}. {(len(sample_concepts) / len(concepts)) * 100} %")
         # 2. pick elements that have concepts in the sample concepts set
         sample_elements = {}
         for element in elements:
@@ -542,7 +497,7 @@ class Dug:
             for concept in element.concepts:
                 # add elements that have kg
                 if concept in sample_concepts:
-                    sample_elements[concept] = sample_elements.get(concept,set())
+                    sample_elements[concept] = sample_elements.get(concept, set())
                     sample_elements[concept].add(element.id)
 
         # Time for some validation
@@ -568,7 +523,7 @@ class Dug:
                 # 'search_phase_execution_exception', 'token_mgr_error: Lexical error ...
                 search_term = re.sub(r'[^a-zA-Z0-9_\ ]+', '', search_term)
 
-                searched_element_ids = Dug._search_elements(curie, search_term)
+                searched_element_ids = self._search_elements(curie, search_term)
 
                 present = bool(len([x for x in sample_elements[curie] if x in searched_element_ids]))
                 if not present:
@@ -581,7 +536,7 @@ class Dug:
 class DugUtil():
 
     @staticmethod
-    def annotate_db_gap_files(config=None, to_string=False, files = None):
+    def annotate_db_gap_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
                 files = Util.dug_dd_xml_objects()
@@ -592,7 +547,7 @@ class DugUtil():
         return output_log
 
     @staticmethod
-    def annotate_topmed_files(config=None, to_string=False, files = None):
+    def annotate_topmed_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
                 files = Util.dug_topmed_objects()
@@ -651,7 +606,6 @@ class DugUtil():
             output_log = dug.log_stream.getvalue() if to_string else ''
         return output_log
 
-
     @staticmethod
     def crawl_tranql(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
@@ -687,7 +641,7 @@ class DugUtil():
                 log.error(f"Expanded Concepts Datasets: {list(expanded_concepts_files_dict.keys())}")
                 exit(-1)
             for data_set_name in annotated_elements_files_dict:
-                log.debug(f"Reading concepts and elements for dataset { data_set_name }")
+                log.debug(f"Reading concepts and elements for dataset {data_set_name}")
                 elements_file_path = annotated_elements_files_dict[data_set_name]
                 concepts_file_path = expanded_concepts_files_dict[data_set_name]
                 dug_elements = Util.read_object(elements_file_path)
@@ -698,36 +652,28 @@ class DugUtil():
             output_log = dug.log_stream.getvalue() if to_string else ''
         return output_log
 
-    @staticmethod
-    def get_topmed_files(config=None, to_string=False):
-        """
-        Currently this is a copy form dug data dir to <working dir>/dug/input_files/topmed/
-        :param config:
-        :param to_string:
-        :return:
-        """
-        if not config:
-            config = get_config()
-        home = os.path.join(os.path.dirname(os.path.join(os.path.abspath(__file__))), '..')
-        zip_file_path = os.path.join(home, get_config()['dug_data_root'], 'topmed_data')
-        data_path = Path(zip_file_path)
-        data_files = data_path.glob('topmed_*')
-        output_path = Util.dug_input_files_path("topmed/")
-        Util.mkdir(output_path)
-        for file in data_files:
-            output_file_name = os.path.join(output_path, file.name)
-            Util.copy_file_to_dir(file, output_file_name)
-            log.info(f"Copied {file.name} to {output_file_name}")
 
-    @staticmethod
-    def extract_dbgap_zip_files(config=None, to_string=False):
+def extract_dbgap_zip_files(**_kwargs):
+    zip_file_path = DUG_DATA_DIR / 'dd_xml_data' / 'bdc_dbgap_data_dicts.tar.gz'
+    log.info(f"Unzipping {zip_file_path}")
+    tar = tarfile.open(zip_file_path)
+    out_path = Util.dug_input_files_path("db_gap")
+    tar.extractall(path=out_path)
 
-        if not config:
-            config = get_config()
-        home = os.path.join(os.path.dirname(os.path.join(os.path.abspath(__file__))), '..')
-        zip_file_path = os.path.join(home, config['dug_data_root'], 'dd_xml_data' ,'bdc_dbgap_data_dicts.tar.gz')
-        log.info(f"Unzipping {zip_file_path}")
-        tar = tarfile.open(zip_file_path)
-        out_path = Util.dug_input_files_path("db_gap/")
-        Util.mkdir(out_path)
-        tar.extractall(path=out_path)
+
+def get_topmed_files(**_kwargs):
+    """
+    Currently this is a copy form dug data dir to <working dir>/dug/input_files/topmed/
+    :param config:
+    :param to_string:
+    :return:
+    """
+
+    data_path = DUG_DATA_DIR / 'topmed_data'
+    data_files = data_path.glob('topmed_*')
+    output_path = Util.dug_input_files_path("topmed/")
+    Util.mkdir(output_path)
+    for file in data_files:
+        output_file_name = os.path.join(output_path, file.name)
+        Util.copy_file_to_dir(file, output_file_name)
+        log.info(f"Copied {file.name} to {output_file_name}")

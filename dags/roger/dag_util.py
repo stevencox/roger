@@ -1,16 +1,16 @@
 import os
-from airflow.utils.dates import days_ago
-from airflow.operators.python_operator import PythonOperator
-from roger.Config import get_default_config as get_config
-from roger.roger_util import get_logger
 
+from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
+
+from roger.Config import config
+from roger.roger_util import get_logger
 
 default_args = {
     'owner': 'RENCI',
     'start_date': days_ago(1)
 }
 
-config = get_config()
 
 def task_wrapper(python_callable, **kwargs):
     """
@@ -28,9 +28,9 @@ def task_wrapper(python_callable, **kwargs):
         # remove this since to send every other argument to the python callable.
         del kwargs['dag_run']
     # overrides values
-    config.update(dag_conf)
+    config.dag_run = dag_run
     logger.info("Config")
-    logger.info(config)
+    logger.info(config.dict)
     return python_callable(to_string=True, config=config)
 
 
@@ -39,7 +39,7 @@ def get_executor_config(data_path='/opt/roger/data'):
     :param annotations: Annotations to attach to the executor.
     :returns: Returns a KubernetesExecutor if K8s is configured and None otherwise.
     """
-    env_var_prefix = config.os_var_prefix
+    env_var_prefix = config.OS_VAR_PREFIX
     # based on environment set on scheduler pod, make secrets for worker pod
     # this ensures passwords don't leak as pod templates.
     secrets_map = [{
@@ -103,7 +103,9 @@ def create_python_task (dag, name, a_callable, func_kwargs=None):
             "python_callable": a_callable,
             "to_string": True
         }
-    op_kwargs.update(func_kwargs if func_kwargs is not None else {})
+    if func_kwargs is None:
+        func_kwargs = dict()
+    op_kwargs.update(func_kwargs)
     return PythonOperator(
         task_id=name,
         python_callable=task_wrapper,
@@ -112,5 +114,3 @@ def create_python_task (dag, name, a_callable, func_kwargs=None):
         dag=dag,
         provide_context=True
     )
-
-

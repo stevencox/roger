@@ -1,7 +1,7 @@
 from roger.core import RogerUtil
-from roger.Config import get_default_config as get_config
+from roger.Config import config
 from roger.roger_util import get_logger
-from dug_helpers.dug_utils import DugUtil
+from dug_helpers.dug_utils import DugUtil, get_topmed_files, extract_dbgap_zip_files
 import sys
 import argparse
 
@@ -48,18 +48,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args ()
 
-    config = get_config()
     if args.data_root is not None:
         data_root = args.data_root
-        config.update({'data_root': data_root})
+        config.data_root = data_root
         log.info (f"data root:{data_root}")
 
     # When all lights are on...
 
     # Annotation comes first
     if args.get_dug_input_files:
-        DugUtil.get_topmed_files(config=config)
-        DugUtil.extract_dbgap_zip_files(config=config)
+        get_topmed_files()
+        extract_dbgap_zip_files()
 
     if args.load_and_annotate:
         DugUtil.annotate_db_gap_files(config=config)

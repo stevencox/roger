@@ -1,7 +1,8 @@
-import pytest, os
-from roger.core import BulkLoad
-from roger.test.mocks import BiolinkMock, UtilMock
+import pytest
 from unittest.mock import patch
+
+from roger.core import BulkLoad
+from .conftest import BiolinkMock, UtilMock
 
 
 @pytest.fixture
