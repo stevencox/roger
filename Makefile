@@ -48,7 +48,7 @@ test.integration:
 	${PYTHON} -m pytest tests/integration
 
 #test: Run all tests
-test: test.integration
+test: test.unit test.integration
 
 #build: Build the Docker image
 build:
