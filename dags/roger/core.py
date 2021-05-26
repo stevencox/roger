@@ -1,7 +1,7 @@
 import argparse
 import glob
-import orjson as json
 import os
+import orjson as json
 import ntpath
 import pathlib
 import redis
@@ -15,7 +15,7 @@ from bmt import Toolkit
 from collections import defaultdict
 from enum import Enum
 from io import StringIO
-
+from kgx.utils.kgx_utils import prepare_data_dict as kgx_merge_dict
 from roger import ROGER_DATA_DIR
 from roger.Config import get_default_config as get_config
 from roger.roger_util import get_logger
@@ -176,8 +176,17 @@ class Util:
         return str(ROGER_DATA_DIR / 'bulk' / name)
 
     @staticmethod
+    def metrics_path (name):
+        """
+        Path to write metrics to
+        :param name:
+        :return:
+        """
+        return str(ROGER_DATA_DIR / "metrics" / name)
+
+    @staticmethod
     def dug_kgx_path(name):
-        return str(ROGER_DATA_DIR / "dug" / "kdx" / name)
+        return str(ROGER_DATA_DIR / "dug" / "kgx" / name)
 
     @staticmethod
     def dug_annotation_path(name):
@@ -306,16 +315,32 @@ class Util:
             log.debug ("no source found. up to date")
             return True
         return max(source) < min(target_time_list)
+
+    @staticmethod
+    def json_line_iter(jsonl_file_path):
+        f = open(file=jsonl_file_path,mode='r')
+        for line in f:
+            yield json.loads(line)
+        f.close()
         
 class KGXModel:
     """ Abstractions for transforming Knowledge Graph Exchange formatted data. """
-    def __init__(self, biolink, config=None):
+    def __init__(self, biolink=None, config=None):
         if not config:
             config = get_config()
         self.config = config
-        self.biolink_version = self.config.get('kgx').get('biolink_model_version')
+        self.biolink_version = self.config.kgx.biolink_model_version
         log.debug(f"Trying to get biolink version : {self.biolink_version}")
-        self.biolink = BiolinkModel(self.biolink_version)
+        if biolink == None:
+            self.biolink = BiolinkModel(self.biolink_version)
+        else:
+            self.biolink = biolink
+        self.redis_conn = redis.Redis(
+                    host=self.config.redisgraph.host,
+                    port=self.config.redisgraph.port,
+                    password=self.config.redisgraph.password,
+                    db=1) # uses db1 for isolation @TODO make this config param.
+        self.enable_metrics = self.config.get('enable_metrics', False)
 
     def get (self, dataset_version = "v1.0"):
         """ Read metadata for KGX files and downloads them locally.
@@ -359,6 +384,57 @@ class KGXModel:
         log.info("Done coping dug KGX files.")
         return
 
+    def create_nodes_schema(self):
+        """
+        Extracts schema for nodes based on biolink leaf types
+        :return:
+        """
+
+        category_schemas = defaultdict(lambda: None)
+        category_error_nodes = set()
+        merged_nodes_file = Util.merge_path("nodes.jsonl")
+        log.info(f"Processing : {merged_nodes_file}")
+        for node in Util.json_line_iter(merged_nodes_file):
+            if not node['category']:
+                category_error_nodes.add(node['id'])
+                node['category'] = [BiolinkModel.root_type]
+            node_type = self.biolink.get_leaf_class(node['category'])
+            category_schemas[node_type] = category_schemas.get(node_type, {})
+            for k in node.keys():
+                current_type = type(node[k]).__name__
+                if k not in category_schemas[node_type]:
+                    category_schemas[node_type][k] = current_type
+                else:
+                    previous_type = category_schemas[node_type][k]
+                    category_schemas[node_type][k] = TypeConversionUtil.compare_types(previous_type, current_type)
+        if len(category_error_nodes):
+            log.warn(f"some nodes didn't have category assigned. KGX file has errors."
+                      f"Nodes {len(category_error_nodes)}."
+                      f"Showing first 10: {list(category_error_nodes)[:10]}."
+                      f"These will be treated as {BiolinkModel.root_type}.")
+        """ Write node schemas. """
+        self.write_schema(category_schemas, SchemaType.CATEGORY)
+
+    def create_edges_schema(self):
+        """
+        Create unified schema for all edges in an edges jsonl file.
+        :return:
+        """
+        predicate_schemas = defaultdict(lambda: None)
+        merged_edges_file = Util.merge_path("edges.jsonl")
+        """ Infer predicate schemas. """
+        for edge in Util.json_line_iter(merged_edges_file):
+            predicate = edge['predicate']
+            predicate_schemas[predicate] = predicate_schemas.get(predicate, {})
+            for k in edge.keys():
+                current_type = type(edge[k]).__name__
+                if k not in predicate_schemas[predicate]:
+                    predicate_schemas[predicate][k] = current_type
+                else:
+                    previous_type = predicate_schemas[predicate][k]
+                    predicate_schemas[predicate][k] = TypeConversionUtil.compare_types(previous_type, current_type)
+        self.write_schema(predicate_schemas, SchemaType.PREDICATE)
+
     def create_schema (self):
         """
         Determine the schema of each type of object. We have to do this to make it possible
@@ -369,47 +445,8 @@ class KGXModel:
             log.info (f"schema is up to date.")
             return
 
-        predicate_schemas = defaultdict(lambda:None)
-        category_schemas = defaultdict(lambda:None)        
-        for subgraph in Util.kgx_objects ():
-            """ Read a kgx data file. """
-            log.debug (f"analyzing schema of {subgraph}.")
-            basename = os.path.basename (subgraph).replace (".json", "")
-            graph = Util.read_object (subgraph)
-            """ Infer predicate schemas. """
-            for edge in graph['edges']:
-                predicate = edge['predicate']
-                predicate_schemas[predicate] = predicate_schemas.get(predicate, {})
-                for k in edge.keys ():
-                    current_type = type(edge[k]).__name__
-                    if k not in predicate_schemas[predicate]:
-                        predicate_schemas[predicate][k] = current_type
-                    else:
-                        previous_type = predicate_schemas[predicate][k]
-                        predicate_schemas[predicate][k] = TypeConversionUtil.compare_types(previous_type, current_type)
-            """ Infer node schemas. """
-            category_error_nodes = set()
-            for node in graph['nodes']:
-                if not node['category']:
-                    category_error_nodes.add(node['id'])
-                    node['category'] = [BiolinkModel.root_type]
-                node_type = self.biolink.get_leaf_class (node['category'])
-                category_schemas[node_type] = category_schemas.get(node_type, {})
-                for k in node.keys ():
-                    current_type = type(node[k]).__name__
-                    if  k not in category_schemas[node_type]:
-                        category_schemas[node_type][k] = current_type
-                    else:
-                        previous_type = category_schemas[node_type][k]
-                        category_schemas[node_type][k] = TypeConversionUtil.compare_types(previous_type, current_type)
-            if len(category_error_nodes):
-                log.warn(f"some nodes didn't have category assigned. KGX file has errors."
-                          f"Nodes {len(category_error_nodes)}."
-                          f"Showing first 10: {list(category_error_nodes)[:10]}."
-                          f"These will be treated as {BiolinkModel.root_type}.")
-        """ Write node and predicate schemas. """
-        self.write_schema (predicate_schemas, SchemaType.PREDICATE)
-        self.write_schema (category_schemas, SchemaType.CATEGORY)
+        self.create_nodes_schema()
+        self.create_edges_schema()
 
     def schema_up_to_date (self):
         return Util.is_up_to_date (
@@ -437,57 +474,137 @@ class KGXModel:
     def diff_lists (self, L, R):
         return list(list(set(L)-set(R)) + list(set(R)-set(L)))
 
+    def read_items_from_redis(self, ids):
+        chunk_size = 10_000 # batch for pipeline
+        pipeline = self.redis_conn.pipeline()
+        response = {}
+        chunked_ids = [ids[start: start + chunk_size] for start in range(0, len(ids), chunk_size)]
+        for ids in chunked_ids:
+            for i in ids:
+                pipeline.get(i)
+            result = pipeline.execute()
+            for i, res in zip(ids, result):
+                if res:
+                    response.update({i: json.loads(res)})
+        return response
+
+    def write_items_to_redis(self, items):
+        chunk_size = 10_000  # batch for redis beyond this cap it might not be optimal, according to redis docs
+        pipeline = self.redis_conn.pipeline()
+        all_keys = list(items.keys())
+        chunked_keys = [all_keys[start: start + chunk_size] for start in range(0, len(all_keys), chunk_size)]
+        for keys in chunked_keys:
+            for key in keys:
+                pipeline.set(key, json.dumps(items[key]))
+            pipeline.execute()
+
+    def delete_keys(self, items):
+        # deletes keys
+        chunk_size = 10_000
+        pipeline = self.redis_conn.pipeline()
+        all_keys = list(items)
+        chunked_keys = [all_keys[start: start + chunk_size] for start in range(0, len(all_keys), chunk_size)]
+        for keys in chunked_keys:
+            for key in keys:
+                pipeline.delete(key)
+            pipeline.execute()
+
+    def write_redis_back_to_jsonl(self, file_name, redis_key_pattern):
+        Util.mkdir(file_name)
+        with open(file_name, 'w') as f:
+            start = time.time()
+            keys = self.redis_conn.keys(redis_key_pattern)
+            log.info(f"Grabbing {redis_key_pattern} from redis too {time.time() - start}")
+            chunk_size = 500_000
+            chunked_keys = [keys[start: start + chunk_size] for start in range(0, len(keys), chunk_size) ]
+            for chunk in chunked_keys:
+                items = self.read_items_from_redis(chunk)
+                self.delete_keys(chunk)
+                # transform them into lines
+                items = [json.dumps(items[x]).decode('utf-8') + '\n' for x in items]
+                f.writelines(items)
+                log.info(f"wrote : {len(items)}")
+
+    def sort_node_types(self, node_dict):
+        categories = node_dict.get('category')
+        if not categories:
+            return node_dict
+        leaf_type = self.biolink.get_leaf_class(categories)
+        # brings leaf class in the top
+        categories = [leaf_type] + [x for x in categories if x != leaf_type]
+        node_dict['category'] = categories
+        return node_dict
+
     def merge (self):
         """ Merge nodes. Would be good to have something less computationally intensive. """
-        for path in Util.kgx_objects ():
-            path_sep = os.path.sep
-            new_path = path.replace (f'{path_sep}kgx{path_sep}', f'{path_sep}merge{path_sep}')
+        kgx_files = Util.kgx_objects()
+        metrics = {}
+        start = time.time()
+        for file in kgx_files:
+            current_metric = {}
+            total_time = read_time = time.time()
+            current_kgx_data = Util.read_object(file)
+            read_time = time.time() - read_time
+            current_metric['read_kgx_file_time'] = read_time
+            # prefix keys for fetching back and writing to file.
+            nodes = {f"node-{node['id']}": self.sort_node_types(node) for node in current_kgx_data['nodes']}
+            edges = {f"edge-{edge['subject']}-{edge['object']}-{edge['predicate']}": edge for edge in
+                     current_kgx_data['edges']}
+            read_from_redis_time = time.time()
+            # read nodes and edges scoped to current file
+            nodes_in_redis = self.read_items_from_redis(list(nodes.keys()))
+            edges_in_redis = self.read_items_from_redis(list(edges.keys()))
+            read_from_redis_time = time.time() - read_from_redis_time
+            current_metric['read_redis_time'] = read_from_redis_time
+            merge_time = time.time()
+            log.info(f"Found matching {len(nodes_in_redis)} nodes {len(edges_in_redis)} edges from redis...")
+            for node_id in nodes_in_redis:
+                nodes[node_id] = kgx_merge_dict(nodes[node_id], nodes_in_redis[node_id])
+            for edge_id in edges_in_redis:
+                edges[edge_id] = kgx_merge_dict(edges[edge_id], edges_in_redis[edge_id])
+            merge_time = time.time() - merge_time
+            current_metric['merge_time'] = merge_time
+            write_to_redis_time = time.time()
+            self.write_items_to_redis(nodes)
+            self.write_items_to_redis(edges)
+            write_to_redis_time = time.time()  - write_to_redis_time
+            current_metric['write_to_redis_time'] = write_to_redis_time
+            log.debug(
+                "path {:>45} read_file:{:>5} read_nodes_from_redis:{:>7} merge_time:{:>3} write_nodes_to_redis: {"
+                ":>3}".format(
+                    Util.trunc(file, 45), read_time, read_from_redis_time, merge_time, write_to_redis_time))
+            total_file_processing_time = time.time() - total_time
+            current_metric['total_processing_time'] = total_file_processing_time
+            current_metric['total_nodes_in_kgx_file'] = len(nodes)
+            current_metric['total_edges_in_kgx_file'] = len(edges)
+            current_metric['nodes_found_in_redis'] = len(nodes_in_redis)
+            current_metric['edges_found_in_redis'] = len(edges_in_redis)
+            log.info(f"processing {file} took {total_file_processing_time}")
+            metrics[str(file)] = current_metric
+        log.info(f"total time for dumping to redis : {time.time() - start}")
 
-            source_stats = os.stat (path)
-            if os.path.exists (new_path):
-                dest_stats = os.stat (new_path)
-                if dest_stats.st_mtime > source_stats.st_mtime:
-                    log.info (f"merge {new_path} is up to date.")
-                    continue
-
-            log.info (f"merging {path}")
-            graph = Util.read_object (path)
-            graph_nodes = graph.get ('nodes', [])
-            graph_map = { n['id'] : n for n in graph_nodes }
-            graph_keys = graph_map.keys ()
-            total_merge_time = 0
-            for path_2 in Util.kgx_objects ():
-                if path_2 == path:
-                    continue
-                start = Util.current_time_in_millis ()
-                other_graph = Util.read_object (path_2)
-                load_time = Util.current_time_in_millis () - start
-
-                start = Util.current_time_in_millis ()                
-                other_nodes = other_graph.get('nodes', [])
-                other_map = { n['id'] : n for n in other_nodes }
-                other_keys = set(other_map.keys())
-                intersection = [ v for v in graph_keys if v in other_keys ]
-                difference = list(set(other_keys) - set(graph_keys))
-                scope_time = Util.current_time_in_millis () - start
-                
-                start = Util.current_time_in_millis ()
-                for i in intersection:
-                    self.merge_nodes (graph_map[i], other_map[i])
-                other_graph['nodes'] = [ other_map[i] for i in difference ]
-                merge_time = Util.current_time_in_millis () - start
-                
-                start = Util.current_time_in_millis ()
-                Util.write_object (other_graph, path_2.replace ('kgx', 'merge'))
-                write_time = Util.current_time_in_millis () - start
-                log.debug ("merged {:>45} load:{:>5} scope:{:>7} merge:{:>3}".format(
-                    Util.trunc(path_2, 45), load_time, scope_time, merge_time))
-                total_merge_time += load_time + scope_time + merge_time + write_time
-                
-            start = Util.current_time_in_millis ()
-            Util.write_object (graph, new_path)
-            rewrite_time = Util.current_time_in_millis () - start
-            log.info (f"{path} rewrite: {rewrite_time}. total merge time: {total_merge_time}")
+        # now we have all nodes and edges merged in redis we scan the whole redis back to disk
+        write_merge_metric = {}
+        t = time.time()
+        log.info("getting all nodes")
+        start_nodes_jsonl = time.time()
+        nodes_file_path = Util.merge_path("nodes.jsonl")
+        self.write_redis_back_to_jsonl(nodes_file_path, "node-*")
+        log.info(f"writing nodes to took : {time.time() - start_nodes_jsonl}")
+        write_merge_metric['nodes_writing_time'] = time.time() - start_nodes_jsonl
+        start_edge_jsonl = time.time()
+        log.info("getting all edges")
+        edge_output_file_path = Util.merge_path("edges.jsonl")
+        self.write_redis_back_to_jsonl(edge_output_file_path, "edge-*")
+        write_merge_metric['edges_writing_time'] = time.time() - start_edge_jsonl
+        log.info(f"writing edges took: {time.time() - start_edge_jsonl}")
+        write_merge_metric['total_time'] = time.time() - t
+        metrics['write_jsonl'] = write_merge_metric
+        metrics['total_time'] = time.time() - start
+        log.info(f"total took: {time.time() - start}")
+        if self.enable_metrics:
+            path = Util.metrics_path('merge_metrics.yaml')
+            Util.write_object(metrics, path)
 
     def format_keys (self, keys, schema_type : SchemaType):
         """ Format schema keys. Make source and destination first in edges. Make
@@ -590,58 +707,70 @@ class BulkLoad:
             targets=glob.glob (Util.bulk_path ("nodes/**.csv")) + \
             glob.glob (Util.bulk_path ("edges/**.csv")))
 
-    def create (self):
-        """ Check source times. """
+    def create_nodes_csv_file(self):
         if self.tables_up_to_date ():
             log.info ("up to date.")
             return
-        
-        """ Format the data for bulk load. """
-        predicates_schema = Util.read_schema (SchemaType.PREDICATE)
-        categories_schema = Util.read_schema (SchemaType.CATEGORY)
-        bulk_path = Util.bulk_path("")
-        if os.path.exists(bulk_path): 
+        # clear out previous data
+        bulk_path = Util.bulk_path("nodes")
+        if os.path.exists(bulk_path):
             shutil.rmtree(bulk_path)
+        categories_schema = Util.read_schema (SchemaType.CATEGORY)
+        state = defaultdict(lambda: None)
+        log.info(f"processing nodes")
+        """ Write node data for bulk load. """
 
-        state = defaultdict(lambda:None)
-        for subgraph in Util.merged_objects ():
-            log.info (f"processing {subgraph}")
-            graph = Util.read_object (subgraph)
-
-            """ Write node data for bulk load. """
-            categories = defaultdict(lambda: [])
-            category_error_nodes = set()
-            for node in graph['nodes']:
-                if not node['category']:
-                    category_error_nodes.add(node['id'])
-                    node['category'] = [BiolinkModel.root_type]
-                index = self.biolink.get_leaf_class (node['category'])
-                categories[index].append (node)
+        categories = defaultdict(lambda: [])
+        category_error_nodes = set()
+        merged_nodes_file = Util.merge_path("nodes.jsonl")
+        counter = 1
+        for node in Util.json_line_iter(merged_nodes_file):
+            if not node['category']:
+                category_error_nodes.add(node['id'])
+                node['category'] = [BiolinkModel.root_type]
+            index = self.biolink.get_leaf_class(node['category'])
+            categories[index].append(node)
             if len(category_error_nodes):
                 log.error(f"some nodes didn't have category assigned. KGX file has errors."
                           f"Nodes {len(category_error_nodes)}. They will be typed {BiolinkModel.root_type}"
                           f"Showing first 10: {list(category_error_nodes)[:10]}.")
-            self.write_bulk (Util.bulk_path("nodes"), categories, categories_schema,
-                        state=state, f=subgraph, is_relation=False)
+            # flush every 100K
+            if counter % 100_000 == 0:
+                self.write_bulk(Util.bulk_path("nodes"), categories, categories_schema,
+                                state=state, is_relation=False)
+                # reset variables.
+                category_error_nodes = set()
+                categories = defaultdict(lambda: [])
+            counter += 1
+        # write back if any thing left.
+        if len(categories):
+            self.write_bulk(Util.bulk_path("nodes"), categories, categories_schema,
+                            state=state, is_relation=False)
 
-            """ Write predicate data for bulk load. """
-            predicates = defaultdict(lambda: [])
-            for edge in graph['edges']:
-                predicates[edge['predicate']].append (edge)
-            self.write_bulk (Util.bulk_path("edges"), predicates, predicates_schema, is_relation=True)
-            
-    def cleanup (self, v):
-        """ Filter problematic text. 
-        :param v: A value to filter and clean.
-        """
-        if isinstance(v, list):
-            v = [ self.cleanup(val) for val in v ]
-        elif isinstance (v, str):
-            """ Some values contain the CSV separator character. 'fix' that. """
-            if len(v) > 1 and v[0] == '[' and v[-1] == ']':
-                v = v.replace ("[", "@").replace ("]", "@") #f" {v}"
-            v = v.replace ("|","^")
-        return v
+    def create_edges_csv_file(self):
+        """ Write predicate data for bulk load. """
+        if self.tables_up_to_date ():
+            log.info ("up to date.")
+            return
+        # Clear out previous data
+        bulk_path = Util.bulk_path("edges")
+        if os.path.exists(bulk_path):
+            shutil.rmtree(bulk_path)
+        predicates_schema = Util.read_schema(SchemaType.PREDICATE)
+        predicates = defaultdict(lambda: [])
+        edges_file = Util.merge_path('edges.jsonl')
+        counter = 1
+        state = {}
+        for edge in Util.json_line_iter(edges_file):
+            predicates[edge['predicate']].append(edge)
+            # write out every 100K , to avoid large predicate dict.
+            if counter % 100_000 == 0:
+                self.write_bulk(Util.bulk_path("edges"), predicates, predicates_schema, state=state, is_relation=True)
+                predicates = defaultdict(lambda : [])
+            counter += 1
+        # if there are some items left (if loop ended before counter reached the specified value)
+        if len(predicates):
+            self.write_bulk(Util.bulk_path("edges"), predicates, predicates_schema, state=state, is_relation=True)
 
     @staticmethod
     def create_redis_schema_header(attributes: dict, is_relation=False):
@@ -707,7 +836,7 @@ class BulkLoad:
                 clustered_by_set_values[keys_with_values].append(obj)
         return clustered_by_set_values, improper_keys
 
-    def write_bulk(self, bulk_path, obj_map, schema, state={}, is_relation=False, f=None):
+    def write_bulk(self, bulk_path, obj_map, schema, state={}, is_relation=False):
         """ Write a bulk load group of objects.
         :param bulk_path: Path to the bulk loader object to write.
         :param obj_map: A map of biolink type to list of objects.
@@ -747,7 +876,7 @@ class BulkLoad:
                 # we are sure that the schemas match.
 
                 # biolink:<TYPE> is not valid name so we need to remove :
-                file_key = key.replace('biolink:', '')
+                file_key = key.replace(':', '~')
 
                 out_file = f"{bulk_path}/{file_key}.csv-{index}-{called_x_times}" if not out_file else out_file
                 state['file_paths'][key][set_attributes] = out_file  # store back file name
@@ -824,12 +953,12 @@ class BulkLoad:
         args = []
         if len(nodes) > 0:
             bulk_path_root = Util.bulk_path('nodes') + os.path.sep
-            nodes_with_type = [ f"biolink:{ x.replace(bulk_path_root, '').split('.')[0]} {x}"
+            nodes_with_type = [ f"{ x.replace(bulk_path_root, '').split('.')[0].replace('~', ':')} {x}"
                                 for x in nodes ]
             args.extend(("-N " + " -N ".join(nodes_with_type)).split())
         if len(edges) > 0:
             bulk_path_root = Util.bulk_path('edges') + os.path.sep
-            edges_with_type = [ f"biolink:{x.replace(bulk_path_root, '').strip(os.path.sep).split('.')[0]} {x}"
+            edges_with_type = [ f"{x.replace(bulk_path_root, '').strip(os.path.sep).split('.')[0].replace('~', ':')} {x}"
                                for x in edges]
             args.extend(("-R " + " -R ".join(edges_with_type)).split())
         args.extend([f"--separator={self.separator}"])
@@ -853,7 +982,7 @@ class BulkLoad:
             password=self.config.redisgraph.password,
             graph=self.config.redisgraph.graph,
         )
-    
+
     def validate(self):
 
         db = self.get_redisgraph()
@@ -923,12 +1052,27 @@ class RogerUtil:
     
     @staticmethod
     def create_schema (to_string=False, config=None):
-        output = None
-        with Roger (to_string, config=config) as roger:
-            roger.kgx.create_schema ()
-            output = roger.log_stream.getvalue () if to_string else None
+        o1 = RogerUtil.create_nodes_schema(to_string=to_string, config=config)
+        o2 = RogerUtil.create_edges_schema(to_string=to_string, config=config)
+        output = (o1 + o2 ) if to_string else None
         return output
-    
+
+    @staticmethod
+    def create_edges_schema(to_string=False, config=None):
+        output = None
+        with Roger(to_string, config=config) as roger:
+            roger.kgx.create_edges_schema()
+            output = roger.log_stream.getvalue() if to_string else None
+        return output
+
+    @staticmethod
+    def create_nodes_schema(to_string=False, config=None):
+        output = None
+        with Roger(to_string, config=config) as roger:
+            roger.kgx.create_nodes_schema()
+            output = roger.log_stream.getvalue() if to_string else None
+        return output
+
     @staticmethod
     def merge_nodes (to_string=False, config=None):
         output = None
@@ -939,10 +1083,25 @@ class RogerUtil:
     
     @staticmethod
     def create_bulk_load (to_string=False, config=None):
+        o1 = RogerUtil.create_bulk_nodes(to_string=to_string, config=config)
+        o2 = RogerUtil.create_bulk_edges(to_string=to_string, config=config)
+        output = (o1 + o2) if to_string else None
+        return output
+
+    @staticmethod
+    def create_bulk_nodes(to_string=False, config=None):
         output = None
-        with Roger (to_string, config=config) as roger:
-            roger.bulk.create ()
-            output = roger.log_stream.getvalue () if to_string else None
+        with Roger(to_string, config=config) as roger:
+            roger.bulk.create_nodes_csv_file()
+            output = roger.log_stream.getvalue() if to_string else None
+        return output
+
+    @staticmethod
+    def create_bulk_edges(to_string=False, config=None):
+        output = None
+        with Roger(to_string, config=config) as roger:
+            roger.bulk.create_edges_csv_file()
+            output = roger.log_stream.getvalue() if to_string else None
         return output
 
     @staticmethod

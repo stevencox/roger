@@ -1,0 +1,19 @@
+{
+  "category-schema.json": {
+    "named_thing": {
+    "id": "str",
+    "category": "list",
+    "list_vs_str": "list",
+    "list_vs_int": "list",
+    "list_vs_bool": "list",
+    "list_vs_float": "list",
+    "str_vs_float": "str",
+    "str_vs_bool": "str",
+    "str_vs_int": "str",
+    "int_vs_bool": "str",
+    "int_vs_float": "str",
+    "float_vs_bool": "str"
+    }
+  },
+  "predicate-schema.json": {}
+}

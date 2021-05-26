@@ -1,7 +1,7 @@
 import os
 
 from roger.core import SchemaType
-
+import json
 
 class BiolinkMock:
     def __init__(self):
@@ -27,6 +27,7 @@ class UtilMock:
     file_content_assertions = {}
     kgx_files = []
     merged_files = []
+    merge_file_test_dir = ''
     schema = {
         SchemaType.PREDICATE: {},
         SchemaType.CATEGORY: {}
@@ -70,3 +71,15 @@ class UtilMock:
         print(dictionary, file_name)
         print(UtilMock.file_content_assertions)
         assert UtilMock.file_content_assertions[file_name] == dictionary
+
+    @staticmethod
+    def merge_path(file_name):
+        return os.path.join(*os.path.split(__file__)[:-1], 'data', 'merge', UtilMock.merge_file_test_dir, file_name)
+
+
+    @staticmethod
+    def json_line_iter(jsonl_file_path):
+        f = open(file=jsonl_file_path, mode='r')
+        for line in f:
+            yield json.loads(line)
+        f.close()

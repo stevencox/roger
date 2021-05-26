@@ -57,7 +57,7 @@ x-airflow-common:
     ROGER_ELASTICSEARCH_NBOOST__HOST: "$NBOOST_API_HOST"
     ROGER_REDISGRAPH_HOST: "$REDIS_HOST"
     ROGER_REDISGRAPH_PASSWORD: "$REDIS_PASSWORD"
-    ROGER_KGX_DATASET__VERSION: "test"
+    ROGER_KGX_DATASET__VERSION: "v1.0"
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
@@ -86,7 +86,7 @@ services:
 
   redis:
     image: redislabs/redisgraph:2.4.1
-    command: "redis-server --requirepass $REDIS_PASSWORD"
+    command: "redis-server --requirepass $REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redisgraph.so"
     ports:
       - $REDIS_PORT:$REDIS_PORT
     healthcheck:
@@ -180,7 +180,7 @@ services:
       - '8000:8000'
 
   tranql:
-    image: renciorg/tranql-app:develop-test
+    image: helxplatform/tranql-app:develop-0.0.56
     ports:
       - '8081:8081'
     entrypoint: [
@@ -193,6 +193,10 @@ services:
         "--log-level=debug",
         "tranql.api:app",
     ]
+    environment:
+      - REDIS_PASSWORD=$REDIS_PASSWORD
+    volumes:
+      - ./tranql-schema.yaml:/tranql/tranql/conf/schema.yaml
 
 volumes:
   postgres-db-volume:
