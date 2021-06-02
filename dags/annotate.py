@@ -2,7 +2,7 @@ from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 
-from dug_helpers.dug_utils import DugUtil, get_topmed_files, extract_dbgap_zip_files
+from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
 from roger.dag_util import default_args, create_python_task
 
 DAG_ID = 'annotate_dug'
@@ -27,7 +27,7 @@ with DAG(
     # 3. tasks like intro would fail because they don't have the data dir mounted.
 
     get_topmed_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
-    extract_db_gap_files = create_python_task(dag, "get_dbgab_data", extract_dbgap_zip_files)
+    extract_db_gap_files = create_python_task(dag, "get_dbgab_data", get_dbgap_files)
 
     annotate_topmed_files = create_python_task(dag, "annotate_topmed_files", DugUtil.annotate_topmed_files)
     annotate_db_gap_files = create_python_task(dag, "annotate_db_gap_files", DugUtil.annotate_db_gap_files)
