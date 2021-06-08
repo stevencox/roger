@@ -146,3 +146,4 @@ cython_debug/
 dags/roger/data
 local_storage
 logs
+tests/integration/data/bulk/

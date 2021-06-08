@@ -1,7 +1,7 @@
 from roger.core import RogerUtil
 from roger.Config import config
 from roger.roger_util import get_logger
-from dug_helpers.dug_utils import DugUtil, get_topmed_files, extract_dbgap_zip_files
+from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
 import sys
 import argparse
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # Annotation comes first
     if args.get_dug_input_files:
         get_topmed_files()
-        extract_dbgap_zip_files()
+        get_dbgap_files()
 
     if args.load_and_annotate:
         DugUtil.annotate_db_gap_files(config=config)

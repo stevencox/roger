@@ -7,15 +7,16 @@ import traceback
 from functools import reduce
 from io import StringIO
 from pathlib import Path
+from typing import Union, List
 
+import requests
 from dug.core import get_parser, get_plugin_manager, DugConcept
-from dug.core.factory import DugFactory
 from dug.core.annotate import DugAnnotator, ConceptExpander
 from dug.core.crawler import Crawler
+from dug.core.factory import DugFactory
 from dug.core.parsers import Parser, DugElement
 from dug.core.search import Search
 
-from dug_helpers import DUG_DATA_DIR
 from roger.Config import RogerConfig
 from roger.core import Util
 from roger.roger_util import get_logger
@@ -653,27 +654,71 @@ class DugUtil():
         return output_log
 
 
-def extract_dbgap_zip_files(**_kwargs):
-    zip_file_path = DUG_DATA_DIR / 'dd_xml_data' / 'bdc_dbgap_data_dicts.tar.gz'
+class FileFetcher:
+    DATA_NETWORK_HOST = "https://stars.renci.org"
+    DATA_NETWORK_ROOT = Path("/var/dug/")
+
+    def __init__(
+            self,
+            remote_host: str = DATA_NETWORK_HOST,
+            remote_dir: Union[str, Path] = DATA_NETWORK_ROOT,
+            local_dir: Union[str, Path] = "."
+    ):
+        self.remote_host = remote_host
+        self.remote_dir = Path(remote_dir)
+        self.local_dir = Path(local_dir).resolve()
+
+    def __call__(self, remote_file_path: Union[str, Path]) -> Path:
+        remote_path = self.remote_dir / remote_file_path
+        local_path = self.local_dir / remote_file_path
+        url = f"{self.remote_host}{remote_path}"
+        log.debug(f"Fetching {url}")
+        try:
+            response = requests.get(url, allow_redirects=True)
+        except Exception as e:
+            log.error(f"Unexpected {e.__class__.__name__}: {e}")
+            raise RuntimeError(f"Unable to fetch {url}")
+        else:
+            log.debug(f"Response: {response.status_code}")
+            if response.status_code == 200:
+                with local_path.open('wb') as file_obj:
+                    file_obj.write(response.content)
+                return local_path
+            else:
+                log.debug(f"Unable to fetch {url}: {response.status_code}")
+                raise RuntimeError(f"Unable to fetch {url}")
+
+
+def get_dbgap_files(**_kwargs) -> List[Path]:
+    """
+    Fetches dbgap data files to input file directory
+    """
+
+    filename = "bdc_dbgap_data_dicts.tar.gz"
+    output_dir: Path = Util.dug_input_files_path("db_gap")
+    fetch = FileFetcher(local_dir=output_dir)
+    zip_file_path = fetch(filename)
     log.info(f"Unzipping {zip_file_path}")
     tar = tarfile.open(zip_file_path)
-    out_path = Util.dug_input_files_path("db_gap")
-    tar.extractall(path=out_path)
+    tar.extractall(path=output_dir)
+    return [output_dir / "bdc_dbgap_data_dicts"]
 
 
-def get_topmed_files(**_kwargs):
+def get_topmed_files(**_kwargs) -> List[Path]:
     """
-    Currently this is a copy form dug data dir to <working dir>/dug/input_files/topmed/
-    :param config:
-    :param to_string:
-    :return:
+    Fetches topmed data files to input file directory
     """
 
-    data_path = DUG_DATA_DIR / 'topmed_data'
-    data_files = data_path.glob('topmed_*')
-    output_path = Util.dug_input_files_path("topmed/")
-    Util.mkdir(output_path)
-    for file in data_files:
-        output_file_name = os.path.join(output_path, file.name)
-        Util.copy_file_to_dir(file, output_file_name)
-        log.info(f"Copied {file.name} to {output_file_name}")
+    topmed_paths = [
+        'topmed_tags_v2.0.json',
+        'topmed_variables_v2.0.csv',
+    ]
+
+    output_dir: Path = Util.dug_input_files_path("topmed")
+    fetch = FileFetcher(local_dir=output_dir)
+    return [
+        fetch(filename)
+        for filename
+        in topmed_paths
+    ]
+
