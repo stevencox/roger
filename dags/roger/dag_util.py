@@ -70,20 +70,20 @@ def get_executor_config(data_path='/opt/roger/data'):
             "envs": secrets,
             "volumes": [
                 {
-                    "name": "roger-data",
+                    "name": "search-data",
                     "persistentVolumeClaim": {
-                        "claimName": "roger-data-pvc"
+                        "claimName": "search-data"
                     }
                 }
             ],
             "volume_mounts": [
                 {
                     "mountPath": data_path,
-                    "name": "roger-data",
+                    "name": "search-data",
                     "subpath": "data"
                 },{
                     "mountPath": "/opt/airflow/logs",
-                    "name": "roger-data",
+                    "name": "search-data",
                     "subpath": "task-logs"
                 }
             ]
