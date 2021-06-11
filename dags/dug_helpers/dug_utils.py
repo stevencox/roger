@@ -689,7 +689,7 @@ class FileFetcher:
                 raise RuntimeError(f"Unable to fetch {url}")
 
 
-def get_dbgap_files(**_kwargs) -> List[Path]:
+def get_dbgap_files(**_kwargs) -> List[str]:
     """
     Fetches dbgap data files to input file directory
     """
@@ -701,10 +701,10 @@ def get_dbgap_files(**_kwargs) -> List[Path]:
     log.info(f"Unzipping {zip_file_path}")
     tar = tarfile.open(zip_file_path)
     tar.extractall(path=output_dir)
-    return [output_dir / "bdc_dbgap_data_dicts"]
+    return [str(output_dir / "bdc_dbgap_data_dicts")]
 
 
-def get_topmed_files(**_kwargs) -> List[Path]:
+def get_topmed_files(**_kwargs) -> List[str]:
     """
     Fetches topmed data files to input file directory
     """
@@ -717,7 +717,7 @@ def get_topmed_files(**_kwargs) -> List[Path]:
     output_dir: Path = Util.dug_input_files_path("topmed")
     fetch = FileFetcher(local_dir=output_dir)
     return [
-        fetch(filename)
+        str(fetch(filename))
         for filename
         in topmed_paths
     ]

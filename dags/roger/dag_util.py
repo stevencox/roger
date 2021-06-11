@@ -68,25 +68,6 @@ def get_executor_config(data_path='/opt/airflow/share/data'):
     k8s_executor_config = {
         "KubernetesExecutor": {
             "envs": secrets,
-            # "volumes": [
-                # {
-                #     "name": "search-data",
-                #     "persistentVolumeClaim": {
-                #         "claimName": "search-data"
-                #     }
-                # }
-            # ],
-            # "volume_mounts": [
-                # {
-                #     "mountPath": data_path,
-                #     "name": "search-data",
-                #     "subpath": "data"
-                # },{
-                #     "mountPath": "/opt/airflow/logs",
-                #     "name": "search-data",
-                #     "subpath": "task-logs"
-                # }
-            # ]
         }
     }
     return k8s_executor_config

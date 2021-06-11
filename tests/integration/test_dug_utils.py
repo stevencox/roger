@@ -48,12 +48,12 @@ def test_fetcher_errors():
 
 
 def test_get_topmed_files():
-    file_paths = get_topmed_files()
-    for path in file_paths:
-        assert path.exists()
+    file_names = get_topmed_files()
+    for file_name in file_names:
+        assert Path(file_name).exists()
 
 
 def test_get_dbgap_files():
-    file_paths = get_dbgap_files()
-    for path in file_paths:
-        assert path.exists()
+    file_names = get_dbgap_files()
+    for file_name in file_names:
+        assert Path(file_name).exists()
