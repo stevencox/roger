@@ -34,7 +34,7 @@ def task_wrapper(python_callable, **kwargs):
     return python_callable(to_string=True, config=config)
 
 
-def get_executor_config(data_path='/opt/roger/data'):
+def get_executor_config(data_path='/opt/airflow/share/data'):
     """ Get an executor configuration.
     :param annotations: Annotations to attach to the executor.
     :returns: Returns a KubernetesExecutor if K8s is configured and None otherwise.
@@ -68,25 +68,25 @@ def get_executor_config(data_path='/opt/roger/data'):
     k8s_executor_config = {
         "KubernetesExecutor": {
             "envs": secrets,
-            "volumes": [
-                {
-                    "name": "search-data",
-                    "persistentVolumeClaim": {
-                        "claimName": "search-data"
-                    }
-                }
-            ],
-            "volume_mounts": [
-                {
-                    "mountPath": data_path,
-                    "name": "search-data",
-                    "subpath": "data"
-                },{
-                    "mountPath": "/opt/airflow/logs",
-                    "name": "search-data",
-                    "subpath": "task-logs"
-                }
-            ]
+            # "volumes": [
+                # {
+                #     "name": "search-data",
+                #     "persistentVolumeClaim": {
+                #         "claimName": "search-data"
+                #     }
+                # }
+            # ],
+            # "volume_mounts": [
+                # {
+                #     "mountPath": data_path,
+                #     "name": "search-data",
+                #     "subpath": "data"
+                # },{
+                #     "mountPath": "/opt/airflow/logs",
+                #     "name": "search-data",
+                #     "subpath": "task-logs"
+                # }
+            # ]
         }
     }
     return k8s_executor_config
