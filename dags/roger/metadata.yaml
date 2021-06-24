@@ -17,6 +17,24 @@ versions:
   - uberongraph.json
   - viral-proteome.json
   version: v1.0
+- files:
+  - biolink.json
+  - ctd.json
+  - gtopdb.json
+  - hetio.json
+  - hgnc.json
+  - hmdb.json
+  - kegg.json
+  - mychem.json
+  - ontological-hierarchy.json
+  - panther.json
+  - foodb.json
+  - pharos.json
+  - intact.json
+  - human-goa.json
+  - uberongraph.json
+  - viral-proteome.json
+  version: v2.0
 - version: test
   files:
   - panther.json

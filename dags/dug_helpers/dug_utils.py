@@ -201,7 +201,7 @@ class Dug:
                 "id": element.id,
                 "name": element.name,
                 "category": ["biolink:ClinicalModifier"],
-                "description": element.description
+                "description": element.description.replace("'", '`') # bulk loader parsing issue
             }
             if element.id not in written_nodes:
                 nodes.append(variable_node)
@@ -276,7 +276,7 @@ class Dug:
             nodes.append({
                 "id": tag_id,
                 "name": tag.name,
-                "description": tag.description,
+                "description": tag.description.replace("'", "`"),
                 "category": ["biolink:InformationContentEntity"]
             })
             """ Link ontology identifiers we've found for this tag via nlp. """
@@ -553,6 +553,7 @@ class DugUtil():
             if files is None:
                 files = Util.dug_topmed_objects()
             parser_name = "TOPMedTag"
+            log.info(files)
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
             output_log = dug.log_stream.getvalue() if to_string else ''

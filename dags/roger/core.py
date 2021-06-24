@@ -242,12 +242,11 @@ class Util:
     @staticmethod
     def dug_topmed_path(name):
         """ Topmed source files"""
-        home = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(home, "../..", "dug_helpers", "dug_data", "topmed_data", name)
+        return Util.dug_input_files_path('topmed') / name
 
     @staticmethod
     def dug_topmed_objects():
-        topmed_file_pattern = Util.dug_topmed_path("topmed_*.csv")
+        topmed_file_pattern = str(Util.dug_topmed_path("topmed_*.csv"))
         return sorted(glob.glob(topmed_file_pattern))
 
     @staticmethod

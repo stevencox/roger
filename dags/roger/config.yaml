@@ -11,7 +11,7 @@ logging:
 
 data_root: roger/data
 dug_data_root: dug_helpers/dug_data/
-base_data_uri: https://stars.renci.org/var/kgx_data/trapi-1.0/
+base_data_uri: https://stars.renci.org/var/kgx_data/v2.0/
 
 kgx:
   biolink_model_version: 1.5.0
@@ -34,7 +34,7 @@ annotation:
   annotator: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
   normalizer: "https://nodenormalization-sri.renci.org/1.1/get_normalized_nodes?curie="
   synonym_service: "https://onto.renci.org/synonyms/"
-  ontology_metadata: "https://api.monarchinitiative.org/api/ontology/term/"
+  ontology_metadata: "https://api.monarchinitiative.org/api/bioentity/"
   preprocessor:
     debreviator:
       BMI: "body mass index"
@@ -54,8 +54,6 @@ indexing:
     "anat": ["disease", "anatomical_entity"]
     "chem_to_disease": ["chemical_substance", "disease"]
     "phen_to_anat": ["phenotypic_feature", "anatomical_entity"]
-    "anat_to_disease": ["anatomical_entity", "disease"]
-    "anat_to_pheno": ["anatomical_entity", "phenotypic_feature"]
   tranql_endpoint: "http://tranql:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
 
 elasticsearch:

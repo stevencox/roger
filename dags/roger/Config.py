@@ -68,7 +68,7 @@ class AnnotationConfig(DictLike):
     annotator: str = "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
     normalizer: str = "https://nodenormalization-sri.renci.org/get_normalized_nodes?curie="
     synonym_service: str = "https://onto.renci.org/synonyms/"
-    ontology_metadata: str = "https://api.monarchinitiative.org/api/ontology/term/"
+    ontology_metadata: str = "https://api.monarchinitiative.org/api/bioentity/"
     preprocessor: dict = field(default_factory=lambda:
         {
             "debreviator": {
