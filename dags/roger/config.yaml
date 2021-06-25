@@ -11,7 +11,7 @@ logging:
 
 data_root: roger/data
 dug_data_root: dug_helpers/dug_data/
-base_data_uri: https://stars.renci.org/var/kgx_data/v2.0/
+base_data_uri: https://stars.renci.org/var/kgx_data/trapi-1.0/
 
 kgx:
   biolink_model_version: 1.5.0
