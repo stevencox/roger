@@ -289,6 +289,9 @@ class Util:
         """ Build a URI.
         :param path: The path of an object.
         :param key: The key of a configuration value to prepend to the object. """
+        # Incase config has http://..../ or http://... remove / and add back to
+        # avoid double http://...//
+        root_url = config[key].rstrip('/')
         return f"{config[key]}/{path}"
 
     @staticmethod
@@ -351,6 +354,7 @@ class KGXModel:
                 log.info(f"Getting KGX file version {item['version']}")
                 for file_name in item['files']:
                     start = Util.current_time_in_millis ()
+                    file_name = dataset_version + "/" + file_name
                     file_url = Util.get_uri (file_name, "base_data_uri")
                     subgraph_basename = os.path.basename (file_name)
                     subgraph_path = Util.kgx_path (subgraph_basename)
@@ -524,6 +528,25 @@ class KGXModel:
                 f.writelines(items)
                 log.info(f"wrote : {len(items)}")
 
+    def kgx_merge_dict(self, dict_1, dict_2):
+        merged = kgx_merge_dict(dict_1, dict_2)
+        for keys in merged:
+            attribute = merged[keys]
+            # When mergeing array's for bulk loading
+            # we have to make sure that items in lists
+            # don't contain single-quotes.
+            # Single quotes in array items break parsing of arrays on bulk loading
+            # downstream.
+            if isinstance(attribute, list):
+                new_attribute = []
+                for value in attribute:
+                    if isinstance(value, str):
+                        value = value.replace("'", '`')
+                    new_attribute.append(value)
+                attribute = new_attribute
+            merged[keys] = attribute
+        return merged
+
     def sort_node_types(self, node_dict):
         categories = node_dict.get('category')
         if not categories:
@@ -558,9 +581,9 @@ class KGXModel:
             merge_time = time.time()
             log.info(f"Found matching {len(nodes_in_redis)} nodes {len(edges_in_redis)} edges from redis...")
             for node_id in nodes_in_redis:
-                nodes[node_id] = kgx_merge_dict(nodes[node_id], nodes_in_redis[node_id])
+                nodes[node_id] = self.kgx_merge_dict(nodes[node_id], nodes_in_redis[node_id])
             for edge_id in edges_in_redis:
-                edges[edge_id] = kgx_merge_dict(edges[edge_id], edges_in_redis[edge_id])
+                edges[edge_id] = self.kgx_merge_dict(edges[edge_id], edges_in_redis[edge_id])
             merge_time = time.time() - merge_time
             current_metric['merge_time'] = merge_time
             write_to_redis_time = time.time()
@@ -604,30 +627,6 @@ class KGXModel:
         if self.enable_metrics:
             path = Util.metrics_path('merge_metrics.yaml')
             Util.write_object(metrics, path)
-
-    def format_keys (self, keys, schema_type : SchemaType):
-        """ Format schema keys. Make source and destination first in edges. Make
-        id first in nodes. Remove keys for fields we can't yet represent.
-        :param keys: List of keys.
-        :param schema_type: Type of schema to conform to.
-        """
-        """ Sort keys. """
-        k_list = sorted(keys)
-        if schema_type == SchemaType.PREDICATE:
-            """ Rename subject and object to src and dest """
-            k_list.remove ('subject')
-            k_list.remove ('object')
-            k_list.insert (0, 'src')
-            k_list.insert (1, 'dest')
-        elif schema_type == SchemaType.CATEGORY:
-            """ Make id the first field. Remove smiles. It causes ast parse errors. 
-            TODO: update bulk loader to ignore AST on selected fields.
-            """
-            k_list.remove ('id')
-            if 'simple_smiles' in k_list:
-                k_list.remove ('simple_smiles')
-            k_list.insert (0, 'id')
-        return k_list
 
 
 class BiolinkModel:
@@ -995,7 +994,33 @@ class BulkLoad:
                 instance = Template (text).safe_substitute (arg)
                 db.query (instance)
                 duration = Util.current_time_in_millis () - start
-                log.info (f"Query {key}:{name} ran in {duration}ms: {instance}") 
+                log.info (f"Query {key}:{name} ran in {duration}ms: {instance}")
+
+    def wait_for_tranql(self):
+        retry_secs = 3
+        tranql_endpoint = self.config.indexing.tranql_endpoint
+        log.info(f"Contacting {tranql_endpoint}")
+        graph_name = self.config["redisgraph"]["graph"]
+        test_query = "SELECT disease-> phenotypic_feature " \
+                     f"FROM 'redis:{graph_name}'" \
+                     f"WHERE  disease='MONDO:0004979'"
+        is_done_loading = False
+        try:
+            while not is_done_loading:
+                response = requests.post(tranql_endpoint, data=test_query)
+                response_code = response.status_code
+                response = response.json()
+                is_done_loading = "message" in response and response_code == 200
+                if is_done_loading:
+                    break
+                else:
+                    log.info(f"Tranql responsed with response: {response}")
+                    log.info(f"Retrying in {retry_secs} secs...")
+                time.sleep(retry_secs)
+        except ConnectionError as e:
+            # convert exception to be more readable.
+            raise ConnectionError(f"Attempting to contact {tranql_endpoint} failed due to connection error. "
+                      f"Please check status of Tranql server.")
 
 
 class Roger:
@@ -1117,6 +1142,14 @@ class RogerUtil:
         with Roger (to_string, config=config) as roger:
             roger.bulk.validate ()
             output = roger.log_stream.getvalue () if to_string else None
+        return output
+
+    @staticmethod
+    def check_tranql(to_string=False, config=None):
+        output = None
+        with Roger(to_string, config=config) as roger:
+            roger.bulk.wait_for_tranql()
+            output = roger.log_stream.getvalue() if to_string else None
         return output
 
 if __name__ == "__main__":

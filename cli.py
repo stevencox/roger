@@ -80,6 +80,7 @@ if __name__ == "__main__":
         RogerUtil.bulk_load(config=config)
     if args.validate:
         RogerUtil.validate(config=config)
+        RogerUtil.check_tranql(config=config)
 
     # Back to dug indexing
     if args.index_variables:

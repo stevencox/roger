@@ -27,14 +27,16 @@ with DAG(
     get_kgx = create_python_task (dag, "GetSource", RogerUtil.get_kgx)
     create_nodes_schema = create_python_task (dag, "CreateNodesSchema", RogerUtil.create_nodes_schema)
     create_edges_schema = create_python_task (dag, "CreateEdgesSchema", RogerUtil.create_edges_schema)
-    continue_task = DummyOperator(task_id="continue")
+    continue_task_bulk_load = DummyOperator(task_id="continueBulkCreate")
+    continue_task_validate = DummyOperator(task_id="continueValidation")
     merge_nodes = create_python_task (dag, "MergeNodes", RogerUtil.merge_nodes)
     create_bulk_load_nodes = create_python_task (dag, "CreateBulkLoadNodes", RogerUtil.create_bulk_nodes)
     create_bulk_load_edges = create_python_task (dag, "CreateBulkLoadEdges", RogerUtil.create_bulk_edges)
     bulk_load = create_python_task (dag, "BulkLoad", RogerUtil.bulk_load)
+    check_tranql = create_python_task(dag, "CheckTranql", RogerUtil.check_tranql)
     validate = create_python_task (dag, "Validate", RogerUtil.validate)
     finish = BashOperator (task_id='Finish', bash_command='echo finish')
 
     """ Build the DAG. """
-    intro >> get_kgx >> merge_nodes >> [create_nodes_schema, create_edges_schema ] >> continue_task >> \
-    [create_bulk_load_nodes, create_bulk_load_edges] >> bulk_load >> validate >> finish
+    intro >> get_kgx >> merge_nodes >> [create_nodes_schema, create_edges_schema ] >> continue_task_bulk_load >> \
+    [create_bulk_load_nodes, create_bulk_load_edges] >> bulk_load >> continue_task_validate >>[validate, check_tranql ] >> finish
