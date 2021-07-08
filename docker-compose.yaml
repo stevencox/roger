@@ -1,0 +1,202 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# Basic Airflow cluster configuration for CeleryExecutor with Redis and PostgreSQL.
+#
+# WARNING: This configuration is for local development. Do not use it in a production deployment.
+#
+# This configuration supports basic configuration using environment variables or an .env file
+# The following variables are supported:
+#
+# AIRFLOW_IMAGE_NAME         - Docker image name used to run Airflow.
+#                              Default: apache/airflow:master-python3.8
+# AIRFLOW_UID                - User ID in Airflow containers
+#                              Default: 50000
+# AIRFLOW_GID                - Group ID in Airflow containers
+#                              Default: 50000
+# _AIRFLOW_WWW_USER_USERNAME - Username for the administrator account.
+#                              Default: airflow
+# _AIRFLOW_WWW_USER_PASSWORD - Password for the administrator account.
+#                              Default: airflow
+#
+# Feel free to modify this file to suit your needs.
+---
+version: '3'
+x-airflow-common:
+  &airflow-common
+  build:
+    dockerfile: Dockerfile
+    context: .
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
+    AIRFLOW__CELERY__BROKER_URL: redis://:$REDIS_PASSWORD@redis:$REDIS_PORT/0
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+
+    ROGER_ELASTICSEARCH_HOST: "$ELASTIC_API_HOST"
+    ROGER_ELASTICSEARCH_PASSWORD: "$ELASTIC_PASSWORD"
+    ROGER_ELASTICSEARCH_NBOOST__HOST: "$NBOOST_API_HOST"
+    ROGER_REDISGRAPH_HOST: "$REDIS_HOST"
+    ROGER_REDISGRAPH_PASSWORD: "$REDIS_PASSWORD"
+    ROGER_KGX_DATASET__VERSION: "v1.0"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+  user: "${AIRFLOW_UID:-50000}:${AIRFLOW_GID:-50000}"
+  depends_on:
+    redis:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redislabs/redisgraph:2.4.1
+    command: "redis-server --requirepass $REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redisgraph.so"
+    ports:
+      - $REDIS_PORT:$REDIS_PORT
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: always
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: always
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+
+  airflow-worker:
+    <<: *airflow-common
+    command: celery worker
+    restart: always
+
+  airflow-init:
+    <<: *airflow-common
+    command: version
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_UPGRADE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+
+  flower:
+    <<: *airflow-common
+    command: celery flower
+    ports:
+      - 5555:5555
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: always
+
+  dug:
+    image: cschreep/dug:develop
+    depends_on:
+      - elasticsearch
+      - redis
+      - nboost
+    restart: always
+    environment:
+      ELASTIC_API_HOST: "$ELASTIC_API_HOST"
+      ELASTIC_PASSWORD: "$ELASTIC_PASSWORD"
+      NBOOST_API_HOST: "$NBOOST_API_HOST"
+      REDIS_HOST: "$REDIS_HOST"
+      REDIS_PASSWORD: "$REDIS_PASSWORD"
+      FLASK_ENV: "development"
+      PYTHONUNBUFFERED: "TRUE"
+    entrypoint: [ "gunicorn",
+                     "--workers=$API_WORKERS", "--name=dug",
+                     "--bind=0.0.0.0:$API_PORT", "--timeout=$API_TIMEOUT",
+                     "--log-level=DEBUG", "--enable-stdio-inheritance", "--reload", "dug.api:app" ]
+    ports:
+      - $API_PORT:$API_PORT
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.6.1
+    environment:
+      - ELASTIC_PASSWORD=$ELASTIC_PASSWORD
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+    volumes:
+      - $DATA_DIR/elastic:/usr/share/elasticsearch/data
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+
+  nboost:
+    image: koursaros/nboost:0.3.9-pt
+    ports:
+      - '8000:8000'
+
+  tranql:
+    image: helxplatform/tranql-app:develop-0.0.56
+    ports:
+      - '8081:8081'
+    entrypoint: [
+        "gunicorn",
+        "--workers=4",
+        "--bind=0.0.0.0:8081",
+        "--timeout=300",
+        "--access-logfile=$TRANQL_ACCESS_LOG",
+        "--error-logfile=$TRANQL_ERROR_LOG",
+        "--log-level=debug",
+        "tranql.api:app",
+    ]
+    environment:
+      - REDIS_PASSWORD=$REDIS_PASSWORD
+    volumes:
+      - ./tranql-schema.yaml:/tranql/tranql/conf/schema.yaml
+
+volumes:
+  postgres-db-volume:

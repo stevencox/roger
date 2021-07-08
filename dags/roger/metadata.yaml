@@ -1,0 +1,41 @@
+versions:
+- files:
+  - biolink-v1.0.json
+  - ctd-v1.0.json
+  - gtopdb-v1.0.json
+  - hetio-v1.0.json
+  - hgnc-v1.0.json
+  - hmdb-v1.0.json
+  - kegg-v1.0.json
+  - mychem-v1.0.json
+  - ontological-hierarchy-v1.0.json
+  - panther-v1.0.json
+  - foodb-v1.0.json
+  - pharos-v1.0.json
+  - intact-v1.0.json
+  - human-goa-v1.0.json
+  - uberongraph-v1.0.json
+  - viral-proteome-v1.0.json
+  version: v1.0
+- files:
+  - biolink-v2.0.json
+  - ctd-v2.0.json
+  - gtopdb-v2.0.json
+  - hetio-v2.0.json
+  - hgnc-v2.0.json
+  - hmdb-v2.0.json
+  - kegg-v2.0.json
+  - mychem-v2.0.json
+  - ontological-hierarchy-v2.0.json
+  - panther-v2.0.json
+  - foodb-v2.0.json
+  - pharos-v2.0.json
+  - intact-v2.0.json
+  - human-goa-v2.0.json
+  - uberongraph-v2.0.json
+  - viral-proteome-v2.0.json
+  version: v2.0
+- version: test
+  files:
+  - panther.json
+

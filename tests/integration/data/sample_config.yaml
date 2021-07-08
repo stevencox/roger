@@ -1,0 +1,120 @@
+redisgraph:
+  username: ""
+  password: ""
+  host: redis
+  graph: test
+  port: 6379
+
+logging:
+  level: DEBUG
+  format: '[%(name)s][%(filename)s][%(lineno)d][%(funcName)20s] %(levelname)s: %(message)s'
+
+data_root: roger/data
+dug_data_root: dug_helpers/dug_data/
+base_data_uri: https://stars.renci.org/var/kgx_data/trapi-1.0/
+
+kgx:
+  biolink_model_version: 1.5.0
+  dataset_version: v1.0
+
+#https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
+bulk_loader:
+  separator: 0x1E
+  enforce_schema: False
+  skip_invalid_nodes: False
+  skip_invalid_edges: False
+  quote: 0
+  max_token_count: 1024
+  max_buffer_size: 2048
+  max_token_size: 500
+  index: []
+  full_text_index: []
+
+annotation:
+  annotator: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
+  normalizer: "https://nodenormalization-sri.renci.org/get_normalized_nodes?curie="
+  synonym_service: "https://onto.renci.org/synonyms/"
+  ontology_metadata: "https://api.monarchinitiative.org/api/ontology/term/"
+  preprocessor:
+    debreviator:
+      BMI: "body mass index"
+    stopwords: "the"
+  ontology_greenlist: ["PATO", "CHEBI", "MONDO", "UBERON", "HP", "MESH", "UMLS"]
+
+indexing:
+  variables_index: "variables_index"
+  concepts_index: "concepts_index"
+  kg_index: "kg_index"
+  tranql_min_score: 0.2
+  excluded_identifiers:
+    - "CHEBI:17336"
+  queries:
+    "disease": ["disease", "phenotypic_feature"]
+    "pheno": ["phenotypic_feature", "disease"]
+    "anat": ["disease", "anatomical_entity"]
+    "chem_to_disease": ["chemical_substance", "disease"]
+    "phen_to_anat": ["phenotypic_feature", "anatomical_entity"]
+    "anat_to_disease": ["anatomical_entity", "disease"]
+    "anat_to_pheno": ["anatomical_entity", "phenotypic_feature"]
+  tranql_endpoint: "http://tranql:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
+
+elasticsearch:
+  host: elasticsearch
+  username: elastic
+  # temporary
+  password: ""
+  nboost_host: ""
+
+
+
+validation:
+  queries:
+    count_nodes:
+      name: "Count Nodes"
+      query: "MATCH (a) RETURN COUNT(a)"
+    count_edges:
+      name: "Count Edges"
+      query: "MATCH (a)-[e]-(b) RETURN COUNT(e)"
+    connectivity:
+      name: TOPMED Connectivity
+      query: "MATCH (a { id : '$var' })--(b) RETURN a.category, b.id"
+      args:
+      - var: TOPMED.TAG:8
+      - var: TOPMED.VAR:phv00000484.v1.p10
+      - var: TOPMED.VAR:phv00000487.v1.p10
+      - var: TOPMED.VAR:phv00000496.v1.p10
+      - var: TOPMED.VAR:phv00000517.v1.p10
+      - var: TOPMED.VAR:phv00000518.v1.p10
+      - var: TOPMED.VAR:phv00000528.v1.p10
+      - var: TOPMED.VAR:phv00000529.v1.p10
+      - var: TOPMED.VAR:phv00000530.v1.p10
+      - var: TOPMED.VAR:phv00000531.v1.p10
+    count_connected_nodes:
+      name: Count Connected Nodes
+      query: "MATCH (a)-[e]-(b) RETURN count(a), count(b)"
+    query_by_type:
+      name: Query by Type
+      query: "MATCH (a:gene)-[e]-(b) WHERE 'chemical_substance' IN b.category RETURN count(distinct(a)), count(distinct(b))"
+    smiles_values:
+      name: Query Chemicals with smiles that look like arrays
+      query: "Match (a: chemical_substance { simple_smiles: '$var' }) RETURN a.id"
+      args:
+      - var: "[Os+6]"
+      - var: "[SiH2]"
+      - var: "[CH]"
+      - var: "[S-2]"
+      - var: "[Ti+4]"
+      - var: "[P-3]"
+      - var: "[Ca+2]"
+      - var: "[Au+3]"
+      - var: "[TeH2]"
+      - var: "[Pb]"
+      - var: "[B+]"
+      - var: "[AsH]"
+      - var: "[O-][I+2]([O-])[O-]"
+      - var: "[He+]"
+      - var: "[Mo+6]"
+      - var: "[N-]=[N+]=[N-]"
+      - var: "[Ag+]"
+      - var: "[Zn+2]"
+      - var: "[C-]#[O+]"
