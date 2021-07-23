@@ -44,5 +44,12 @@ with DAG(
     dummy_stepover = DummyOperator(
         task_id="continue",
     )
-    intro >> [get_topmed_files >> dummy_stepover, extract_db_gap_files >> dummy_stepover] >> dummy_stepover >>\
+    dummy_stepover1 = DummyOperator(
+        task_id="continue",
+    )
+    dummy_stepover2 = DummyOperator(
+        task_id="continue",
+    )
+
+    intro >> [get_topmed_files >> dummy_stepover1, extract_db_gap_files >> dummy_stepover2] >> dummy_stepover >>\
     [annotate_db_gap_files] >> make_kg_tagged # annotate_topmed_files,
