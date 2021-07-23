@@ -51,5 +51,8 @@ with DAG(
         task_id="continue2",
     )
 
-    intro >> [ [get_topmed_files >> dummy_stepover1], [extract_db_gap_files >> dummy_stepover2] ] >> dummy_stepover >>\
+    dbpath = [extract_db_gap_files >> dummy_stepover2]
+    tmpath = [get_topmed_files >> dummy_stepover1]
+
+    intro >> [ tmpath, dbpath ] >> dummy_stepover >>\
     [annotate_db_gap_files] >> make_kg_tagged # annotate_topmed_files,
