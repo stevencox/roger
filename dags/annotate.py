@@ -1,15 +1,24 @@
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator
 
 from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
 from roger.dag_util import default_args, create_python_task
 from roger.roger_util import get_logger
+import json
 import os
+from pprint import pprint
 
 log = get_logger()
 
 DAG_ID = 'annotate_dug'
+
+def print_context(ds, **kwargs):
+    pprint(kwargs)
+    print(ds)
+    forlog = json.dumps(kwargs)
+    return 'log: ' + forlog
 
 """ Build the workflow's tasks and DAG. """
 with DAG(
@@ -30,8 +39,17 @@ with DAG(
     # making it redundant
     # 3. tasks like intro would fail because they don't have the data dir mounted.
 
-    dugloglevel = os.getenv("DUG_LOG_LEVEL", "INFO")
+    dugloglevel = os.getenv("DUG_LOG_LEVEL", "whah?")
     log.info(f"Unzipping {dugloglevel}")
+
+    run_printlog = PythonOperator(
+        task_id='print',
+        provide_context=True,
+        python_callable=print_context,
+        op_kwargs={
+            'duglog': dugloglevel
+        },
+        dag=dag)
 
     get_topmed_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
     extract_db_gap_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
@@ -45,6 +63,10 @@ with DAG(
         task_id="continue",
     )
 
+    run_printlog >> intro
     intro >> get_topmed_files >> annotate_topmed_files >> dummy_stepover
     intro >> extract_db_gap_files >> annotate_db_gap_files >> dummy_stepover
     dummy_stepover >> make_kg_tagged
+
+    #intro >> [get_topmed_files, extract_db_gap_files] >> dummy_stepover >>\
+    #[annotate_topmed_files, annotate_db_gap_files] >> make_kg_tagged
