@@ -36,7 +36,7 @@ with DAG(
     get_topmed_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
     extract_db_gap_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
 
-    #annotate_topmed_files = create_python_task(dag, "annotate_topmed_files", DugUtil.annotate_topmed_files)
+    annotate_topmed_files = create_python_task(dag, "annotate_topmed_files", DugUtil.annotate_topmed_files)
     annotate_db_gap_files = create_python_task(dag, "annotate_db_gap_files", DugUtil.annotate_db_gap_files)
 
     make_kg_tagged = create_python_task(dag, "make_tagged_kgx", DugUtil.make_kg_tagged)
@@ -44,19 +44,7 @@ with DAG(
     dummy_stepover = DummyOperator(
         task_id="continue",
     )
-    dummy_stepover1 = DummyOperator(
-        task_id="continue1",
-    )
-    dummy_stepover2 = DummyOperator(
-        task_id="continue2",
-    )
 
-    #dbpath = extract_db_gap_files >> dummy_stepover2
-    #tmpath = get_topmed_files >> dummy_stepover1
-
-    intro >> get_topmed_files >> dummy_stepover1 >> dummy_stepover
-    intro >> extract_db_gap_files >> dummy_stepover2 >> dummy_stepover
-    dummy_stepover >> [annotate_db_gap_files] >> make_kg_tagged
-
-    #intro >> [ tmpath, dbpath ] >> dummy_stepover >>\
-    #[annotate_db_gap_files] >> make_kg_tagged # annotate_topmed_files,
+    intro >> get_topmed_files >> annotate_topmed_files >> dummy_stepover
+    intro >> extract_db_gap_files >> annotate_db_gap_files >> dummy_stepover
+    dummy_stepover >> make_kg_tagged
