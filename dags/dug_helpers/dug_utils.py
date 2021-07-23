@@ -702,7 +702,13 @@ def get_dbgap_files(**_kwargs) -> List[str]:
     log.info(f"Unzipping {zip_file_path}")
     tar = tarfile.open(zip_file_path)
     tar.extractall(path=output_dir)
-    return [str(output_dir / "bdc_dbgap_data_dicts")]
+    # also get, NIDA files
+    filename = "nida-12studies.tar.gz"
+    zip_file_path = fetch(filename)
+    log.info(f"Unzipping {zip_file_path}")
+    tar = tarfile.open(zip_file_path)
+    tar.extractall(path=output_dir)
+    return [str(output_dir / "nida-12studies"), str(output_dir / "bdc_dbgap_data_dicts")]
 
 
 def get_topmed_files(**_kwargs) -> List[str]:
