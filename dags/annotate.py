@@ -7,10 +7,13 @@ from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
 from roger.dag_util import default_args, create_python_task
 from roger.roger_util import get_logger
 import json
+import logging
 import os
 from pprint import pprint
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = get_logger()
+tasklogger = logging.getLogger("airflow.task")
 
 DAG_ID = 'annotate_dug'
 
@@ -40,7 +43,10 @@ with DAG(
     # 3. tasks like intro would fail because they don't have the data dir mounted.
 
     dugloglevel = os.getenv("DUG_LOG_LEVEL", "whah?")
-    log.info(f"Unzipping {dugloglevel}")
+
+    log.info(f"dugloglevel {dugloglevel}")
+    tasklogger.info("hello from task logger")
+    LoggingMixin().log.info("hello from mixin logger")
 
     run_printlog = PythonOperator(
         task_id='print',
