@@ -45,10 +45,10 @@ with DAG(
         task_id="continue",
     )
     dummy_stepover1 = DummyOperator(
-        task_id="continue",
+        task_id="continue1",
     )
     dummy_stepover2 = DummyOperator(
-        task_id="continue",
+        task_id="continue2",
     )
 
     intro >> [get_topmed_files >> dummy_stepover1, extract_db_gap_files >> dummy_stepover2] >> dummy_stepover >>\
