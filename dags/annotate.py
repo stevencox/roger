@@ -73,13 +73,13 @@ with DAG(
     #     python_callable=print_context,
     #     dag=dag)
 
-    run_printlog = PythonOperator(
-        task_id='log_it',
-        python_callable=my_function,
-        op_kwargs={
-            'duglog': theloglevel
-        },
-        dag=dag)
+    # run_printlog = PythonOperator(
+    #     task_id='log_it',
+    #     python_callable=my_function,
+    #     op_kwargs={
+    #         'duglog': theloglevel
+    #     },
+    #     dag=dag)
 
     log.info(f"after python operator")
 
@@ -95,7 +95,7 @@ with DAG(
         task_id="continue",
     )
 
-    intro >> run_printlog
+    #intro >> run_printlog
     intro >> get_topmed_files >> annotate_topmed_files >> dummy_stepover
     intro >> extract_db_gap_files >> annotate_db_gap_files >> dummy_stepover
     dummy_stepover >> make_kg_tagged
