@@ -15,13 +15,13 @@ tasklogger = logging.getLogger("airflow.task")
 
 DAG_ID = 'annotate_dug'
 
-def print_params_fn(*args, **kwargs):
+def print_params_fn(**kwargs): # *args, 
     import logging
     #import json
     tlogger = logging.getLogger("airflow.task")
 
     tlogger.info(f"kwargs: {kwargs}")
-    tlogger.info(f"args: {args}")
+    #tlogger.info(f"args: {args}")
     #forlog = json.dumps(kwargs)
     return 'done!'
 
