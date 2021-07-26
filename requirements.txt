@@ -10,7 +10,7 @@ pytest==6.2.2
 PyYAML==5.3.1
 git+git://github.com/biolink/biolink-model-toolkit@0.4.0#egg=bmt
 # Using dug commit till next release
-git+git://github.com/helxplatform/dug@377cd3c650bb850873591aa367b8357ec62d3c1d#egg=dug
+git+git://github.com/helxplatform/dug@fac571cdb13854ae9e070a4f0983b973829e2b32#egg=dug
 elasticsearch==7.11.0
 biolinkml>=1.5.10
 orjson
