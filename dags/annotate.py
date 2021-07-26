@@ -69,6 +69,8 @@ with DAG(
         },
         dag=dag)
 
+    log.info(f"after python operator")
+
     get_topmed_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
     extract_db_gap_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
 
