@@ -6,7 +6,6 @@ from airflow.operators.python_operator import PythonOperator
 from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
 from roger.dag_util import default_args, create_python_task
 from roger.roger_util import get_logger
-import logging
 import os
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -15,12 +14,16 @@ log = get_logger()
 
 DAG_ID = 'annotate_dug'
 
-def print_params_fn(**kwargs): # *args, 
+def print_context(ds, **kwargs):
     import logging
+    import pprint
+    pprint(kwargs)
+    print(ds)
+
     #import json
     tlogger = logging.getLogger("airflow.task")
-
     tlogger.info(f"kwargs: {kwargs}")
+
     #tlogger.info(f"args: {args}")
     #forlog = json.dumps(kwargs)
     return 'done!'
@@ -57,14 +60,14 @@ with DAG(
     # helx-scheduler-66f99dfbbf-x8g5p -c airflow-scheduler -- cat share/logs/scheduler/2021-07-26/annotate.py.log
     LoggingMixin().log.info("hello from mixin logger")
 
-    # run_printlog = PythonOperator(
-    #     task_id='print',
-    #     provide_context=True,
-    #     python_callable=print_params_fn,
-    #     op_kwargs={
-    #         'duglog': dugloglevel
-    #     },
-    #     dag=dag)
+    run_printlog = PythonOperator(
+        task_id='print_it',
+        #provide_context=True,
+        python_callable=print_context,
+        op_kwargs={
+            'duglog': theloglevel
+        },
+        dag=dag)
 
     get_topmed_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
     extract_db_gap_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
@@ -78,7 +81,7 @@ with DAG(
         task_id="continue",
     )
 
-    #intro >> run_printlog >> intro
+    intro >> run_printlog
     intro >> get_topmed_files >> annotate_topmed_files >> dummy_stepover
     intro >> extract_db_gap_files >> annotate_db_gap_files >> dummy_stepover
     dummy_stepover >> make_kg_tagged
