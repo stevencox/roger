@@ -62,11 +62,11 @@ with DAG(
 
     run_printlog = PythonOperator(
         task_id='print_it',
-        #provide_context=True,
+        provide_context=True,
         python_callable=print_context,
-        op_kwargs={
-            'duglog': theloglevel
-        },
+        # op_kwargs={
+        #     'duglog': theloglevel
+        # },
         dag=dag)
 
     log.info(f"after python operator")
