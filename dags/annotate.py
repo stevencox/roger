@@ -6,10 +6,8 @@ from airflow.operators.python_operator import PythonOperator
 from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
 from roger.dag_util import default_args, create_python_task
 from roger.roger_util import get_logger
-import json
 import logging
 import os
-from pprint import pprint
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = get_logger()
@@ -17,11 +15,15 @@ tasklogger = logging.getLogger("airflow.task")
 
 DAG_ID = 'annotate_dug'
 
-def print_context(ds, **kwargs):
-    pprint(kwargs)
-    print(ds)
-    forlog = json.dumps(kwargs)
-    return 'log: ' + forlog
+def print_params_fn(*args, **kwargs):
+    import logging
+    #import json
+    tlogger = logging.getLogger("airflow.task")
+
+    tlogger.info(f"kwargs: {kwargs}")
+    tlogger.info(f"args: {args}")
+    #forlog = json.dumps(kwargs)
+    return 'done!'
 
 """ Build the workflow's tasks and DAG. """
 with DAG(
@@ -51,7 +53,7 @@ with DAG(
     run_printlog = PythonOperator(
         task_id='print',
         provide_context=True,
-        python_callable=print_context,
+        python_callable=print_params_fn,
         op_kwargs={
             'duglog': dugloglevel
         },
