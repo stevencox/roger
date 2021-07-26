@@ -20,24 +20,18 @@ def print_context(ds, **kwargs):
     pprint(kwargs)
     print(ds)
 
-    #import json
     tlogger = logging.getLogger("airflow.task")
     tlogger.info(f"kwargs: {kwargs}")
 
-    #tlogger.info(f"args: {args}")
-    #forlog = json.dumps(kwargs)
     return 'done!'
 
 def my_function(arg1):
     import logging
     print(f"arg1: {arg1}")
 
-    #import json
-    tlogger = logging.getLogger("airflow.task")
-    tlogger.info(f"arg1: {arg1}")
+    #tlogger = logging.getLogger("airflow.task")
+    #tlogger.info(f"arg1: {arg1}")
 
-    #tlogger.info(f"args: {args}")
-    #forlog = json.dumps(kwargs)
     return 'done!'
 
 
