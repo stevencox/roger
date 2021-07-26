@@ -28,6 +28,19 @@ def print_context(ds, **kwargs):
     #forlog = json.dumps(kwargs)
     return 'done!'
 
+def my_function(arg1):
+    import logging
+    print(f"arg1: {arg1}")
+
+    #import json
+    tlogger = logging.getLogger("airflow.task")
+    tlogger.info(f"arg1: {arg1}")
+
+    #tlogger.info(f"args: {args}")
+    #forlog = json.dumps(kwargs)
+    return 'done!'
+
+
 """ Build the workflow's tasks and DAG. """
 with DAG(
     dag_id=DAG_ID,
@@ -60,13 +73,18 @@ with DAG(
     # helx-scheduler-66f99dfbbf-x8g5p -c airflow-scheduler -- cat share/logs/scheduler/2021-07-26/annotate.py.log
     LoggingMixin().log.info("hello from mixin logger")
 
+    # run_printlog = PythonOperator(
+    #     task_id='print_it',
+    #     provide_context=True,
+    #     python_callable=print_context,
+    #     dag=dag)
+
     run_printlog = PythonOperator(
-        task_id='print_it',
-        provide_context=True,
-        python_callable=print_context,
-        # op_kwargs={
-        #     'duglog': theloglevel
-        # },
+        task_id='log_it',
+        python_callable=my_function,
+        op_kwargs={
+            'duglog': theloglevel
+        },
         dag=dag)
 
     log.info(f"after python operator")
