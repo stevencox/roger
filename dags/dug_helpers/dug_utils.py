@@ -665,7 +665,7 @@ class FileFetcher:
             local_dir: Union[str, Path] = "."
     ):
         self.remote_host = remote_host
-        self.remote_dir = remote_dir.rstrip("/")
+        self.remote_dir = remote_dir.rstrip("/") if isinstance(remote_dir, str) else str(remote_dir.as_posix())
         self.local_dir = Path(local_dir).resolve()
 
     def __call__(self, remote_file_path: Union[str, Path]) -> Path:
@@ -735,5 +735,5 @@ def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
                     local_dir=output_dir)
                 fetch(filename)
                 pulled_files.append(filename)
-    return [filename for filename in pulled_files]
+    return [str(output_dir / filename) for filename in pulled_files]
 
