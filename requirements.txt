@@ -1,5 +1,5 @@
 argcomplete==1.12.0
-apache-airflow==2.0.1
+apache-airflow==2.1.2
 flatten-dict
 psycopg2-binary==2.8.6
 redis==3.5.3
@@ -9,7 +9,6 @@ requests<2.24.0
 pytest==6.2.2
 PyYAML==5.3.1
 git+git://github.com/biolink/biolink-model-toolkit@0.4.0#egg=bmt
-# Using dug commit till next release
 git+git://github.com/helxplatform/dug@2.4rc0#egg=dug
 elasticsearch==7.11.0
 biolinkml>=1.5.10

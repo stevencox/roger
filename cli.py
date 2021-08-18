@@ -57,8 +57,8 @@ if __name__ == "__main__":
 
     # Annotation comes first
     if args.get_dug_input_files:
-        get_topmed_files()
-        get_dbgap_files()
+        get_topmed_files(config)
+        get_dbgap_files(config)
 
     if args.load_and_annotate:
         DugUtil.annotate_db_gap_files(config=config)
