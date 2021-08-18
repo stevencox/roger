@@ -47,6 +47,26 @@ class LoggingConfig(DictLike):
 class KgxConfig(DictLike):
     biolink_model_version: str = "1.5.0"
     dataset_version: str = "v1.0"
+    data_sets: List = field(default_factory=lambda: ['baseline-graph'])
+
+    def __post_init__(self):
+        # Convert strings to list. In cases where this is passed as env variable with a single value
+        # cast it to a list. eg ROGER_KGX_DATA__SET="spark,baseline-data" could be converted to
+        # config.kgx.data_set = ["spark", "baseline-data"]
+        self.data_sets = [data_set.strip(" ") for data_set in self.data_sets.split(",")] \
+            if isinstance(self.data_sets, str) else self.data_sets
+
+@dataclass
+class DugInputsConfig(DictLike):
+    dataset_version: str = "v1.0"
+    data_sets: List = field(default_factory=lambda: ['topmed', 'bdc-dbGaP'])
+
+    def __post_init__(self):
+        # Convert strings to list. In cases where this is passed as env variable with a single value
+        # cast it to a list. eg ROGER_KGX_DATA__SET="spark,baseline-data" could be converted to
+        # config.kgx.data_set = ["spark", "baseline-data"]
+        self.data_sets = [data_set.strip(" ") for data_set in self.data_sets.split(",")] \
+            if isinstance(self.data_sets, str) else self.data_sets
 
 
 @dataclass
@@ -81,6 +101,7 @@ class AnnotationConfig(DictLike):
     ontology_greenlist: List[str] = field(default_factory=lambda: [
         "PATO", "CHEBI", "MONDO", "UBERON", "HP", "MESH", "UMLS"
     ])
+
 
 
 @dataclass
@@ -121,6 +142,7 @@ class RogerConfig(DictLike):
         self.redisgraph = RedisConfig(**kwargs.pop('redisgraph', {}))
         self.logging = LoggingConfig(**kwargs.pop('logging', {}))
         self.kgx = KgxConfig(**kwargs.pop('kgx', {}))
+        self.dug_inputs = DugInputsConfig(**kwargs.pop('dug_inputs', {}))
         self.bulk_loader = BulkLoaderConfig(**kwargs.pop('bulk_loader', {}))
         self.annotation = AnnotationConfig(**kwargs.pop('annotation', {}))
         self.indexing = IndexingConfig(**kwargs.pop('indexing', {}))
@@ -128,7 +150,8 @@ class RogerConfig(DictLike):
 
         self.data_root: str = kwargs.pop("data_root", "")
         self.dug_data_root: str = kwargs.pop("dug_data_root", "")
-        self.base_data_uri: str = kwargs.pop("base_data_uri", "")
+        self.kgx_base_data_uri: str = kwargs.pop("kgx_base_data_uri", "")
+        self.annotation_base_data_uri: str = kwargs.pop("annotation_base_data_uri", "")
         self.validation = kwargs.pop("validation")
         self.dag_run = kwargs.pop('dag_run', None)
 

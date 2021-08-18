@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from dug_helpers.dug_utils import FileFetcher, get_topmed_files, get_dbgap_files
+from roger.Config import config
 
 
 def test_fetch_network_file():
@@ -48,12 +49,12 @@ def test_fetcher_errors():
 
 
 def test_get_topmed_files():
-    file_names = get_topmed_files()
+    file_names = get_topmed_files(config=config)
     for file_name in file_names:
         assert Path(file_name).exists()
 
 
 def test_get_dbgap_files():
-    file_names = get_dbgap_files()
+    file_names = get_dbgap_files(config=config)
     for file_name in file_names:
         assert Path(file_name).exists()

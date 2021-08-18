@@ -10,12 +10,21 @@ logging:
   format: '[%(name)s][%(filename)s][%(lineno)d][%(funcName)20s] %(levelname)s: %(message)s'
 
 data_root: roger/data
-dug_data_root: dug_helpers/dug_data/
-base_data_uri: https://stars.renci.org/var/kgx_data/
+
+kgx_base_data_uri: https://stars.renci.org/var/kgx_data/
+annotation_base_data_uri: https://stars.renci.org/var/dug/
 
 kgx:
   biolink_model_version: 1.5.0
   dataset_version: v2.0
+  data_sets:
+    - baseline-graph
+
+dug_inputs:
+  dataset_version: v1.0
+  data_sets:
+    - topmed
+    - bdc-dbGaP
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:
