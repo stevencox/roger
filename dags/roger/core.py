@@ -292,7 +292,7 @@ class Util:
         # Incase config has http://..../ or http://... remove / and add back to
         # avoid double http://...//
         root_url = config[key].rstrip('/')
-        return f"{config[key]}/{path}"
+        return f"{root_url}/{path}"
 
     @staticmethod
     def get_relative_path (path):
@@ -348,14 +348,15 @@ class KGXModel:
         """ Read metadata for KGX files and downloads them locally.
         :param dataset_version: Data version to operate on.
         """
-        metadata = Util.read_relative_object ("metadata.yaml")
-        for item in metadata['versions']:
-            if item['version'] == dataset_version:
-                log.info(f"Getting KGX file version {item['version']}")
+        metadata = Util.read_relative_object ("../metadata.yaml")
+        data_set_list = self.config.kgx.data_sets
+        for item in metadata['kgx']['versions']:
+            if item['version'] == dataset_version and item['name'] in data_set_list:
+                log.info(f"Getting KGX dataset {item['name']} , version {item['version']}")
                 for file_name in item['files']:
                     start = Util.current_time_in_millis ()
                     file_name = dataset_version + "/" + file_name
-                    file_url = Util.get_uri (file_name, "base_data_uri")
+                    file_url = Util.get_uri (file_name, "kgx_base_data_uri")
                     subgraph_basename = os.path.basename (file_name)
                     subgraph_path = Util.kgx_path (subgraph_basename)
                     if os.path.exists (subgraph_path):

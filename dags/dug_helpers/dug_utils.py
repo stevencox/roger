@@ -8,6 +8,7 @@ from functools import reduce
 from io import StringIO
 from pathlib import Path
 from typing import Union, List
+from urllib.request import pathname2url
 
 import requests
 from dug.core import get_parser, get_plugin_manager, DugConcept
@@ -656,21 +657,19 @@ class DugUtil():
 
 
 class FileFetcher:
-    DATA_NETWORK_HOST = "https://stars.renci.org"
-    DATA_NETWORK_ROOT = Path("/var/dug/")
 
     def __init__(
             self,
-            remote_host: str = DATA_NETWORK_HOST,
-            remote_dir: Union[str, Path] = DATA_NETWORK_ROOT,
+            remote_host: str,
+            remote_dir: Union[str, Path],
             local_dir: Union[str, Path] = "."
     ):
         self.remote_host = remote_host
-        self.remote_dir = Path(remote_dir)
+        self.remote_dir = remote_dir.rstrip("/") if isinstance(remote_dir, str) else str(remote_dir.as_posix())
         self.local_dir = Path(local_dir).resolve()
 
     def __call__(self, remote_file_path: Union[str, Path]) -> Path:
-        remote_path = self.remote_dir / remote_file_path
+        remote_path = self.remote_dir + "/" + remote_file_path
         local_path = self.local_dir / remote_file_path
         url = f"{self.remote_host}{remote_path}"
         log.debug(f"Fetching {url}")
@@ -690,36 +689,51 @@ class FileFetcher:
                 raise RuntimeError(f"Unable to fetch {url}")
 
 
-def get_dbgap_files(**_kwargs) -> List[str]:
+def get_dbgap_files(config: RogerConfig, to_string=False) -> List[str]:
     """
     Fetches dbgap data files to input file directory
     """
-
-    filename = "bdc_dbgap_data_dicts.tar.gz"
+    meta_data = Util.read_relative_object ("../metadata.yaml")
+    data_format = "dbGaP"
     output_dir: Path = Util.dug_input_files_path("db_gap")
-    fetch = FileFetcher(local_dir=output_dir)
-    zip_file_path = fetch(filename)
-    log.info(f"Unzipping {zip_file_path}")
-    tar = tarfile.open(zip_file_path)
-    tar.extractall(path=output_dir)
-    return [str(output_dir / "bdc_dbgap_data_dicts")]
+    current_version = config.dug_inputs.dataset_version
+    data_sets = config.dug_inputs.data_sets
+    pulled_files = []
+    for item in meta_data["dug_inputs"]["versions"]:
+        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
+            for filename in item["files"]:
+                remote_host = config.annotation_base_data_uri
+                fetch = FileFetcher(
+                    remote_host=remote_host,
+                    remote_dir=current_version,
+                    local_dir=output_dir)
+                zip_file_path = fetch(filename)
+                log.info(f"Unzipping {zip_file_path}")
+                tar = tarfile.open(zip_file_path)
+                tar.extractall(path=output_dir)
+                pulled_files.append(filename)
+    return [str(output_dir / filename) for filename in pulled_files]
 
 
-def get_topmed_files(**_kwargs) -> List[str]:
+def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     """
     Fetches topmed data files to input file directory
     """
-
-    topmed_paths = [
-        'topmed_tags_v2.0.json',
-        'topmed_variables_v2.0.csv',
-    ]
-
+    meta_data = Util.read_relative_object("../metadata.yaml")
+    data_format = "topmed"
     output_dir: Path = Util.dug_input_files_path("topmed")
-    fetch = FileFetcher(local_dir=output_dir)
-    return [
-        str(fetch(filename))
-        for filename
-        in topmed_paths
-    ]
+    current_version = config.dug_inputs.dataset_version
+    data_sets = config.dug_inputs.data_sets
+    pulled_files = []
+    for item in meta_data["dug_inputs"]["versions"]:
+        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
+            for filename in item["files"]:
+                remote_host = config.annotation_base_data_uri
+                fetch = FileFetcher(
+                    remote_host=remote_host,
+                    remote_dir=current_version,
+                    local_dir=output_dir)
+                fetch(filename)
+                pulled_files.append(filename)
+    return [str(output_dir / filename) for filename in pulled_files]
 

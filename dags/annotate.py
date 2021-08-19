@@ -27,7 +27,7 @@ with DAG(
     # 3. tasks like intro would fail because they don't have the data dir mounted.
 
     get_topmed_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
-    extract_db_gap_files = create_python_task(dag, "get_dbgab_data", get_dbgap_files)
+    extract_db_gap_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
 
     annotate_topmed_files = create_python_task(dag, "annotate_topmed_files", DugUtil.annotate_topmed_files)
     annotate_db_gap_files = create_python_task(dag, "annotate_db_gap_files", DugUtil.annotate_db_gap_files)
@@ -37,6 +37,11 @@ with DAG(
     dummy_stepover = DummyOperator(
         task_id="continue",
     )
-    intro >> [get_topmed_files, extract_db_gap_files] >> dummy_stepover >>\
-    [annotate_topmed_files, annotate_db_gap_files] >> make_kg_tagged
 
+    #intro >> run_printlog
+    intro >> get_topmed_files >> annotate_topmed_files >> dummy_stepover
+    intro >> extract_db_gap_files >> annotate_db_gap_files >> dummy_stepover
+    dummy_stepover >> make_kg_tagged
+
+    #intro >> [get_topmed_files, extract_db_gap_files] >> dummy_stepover >>\
+    #[annotate_topmed_files, annotate_db_gap_files] >> make_kg_tagged
