@@ -25,6 +25,7 @@ dug_inputs:
   data_sets:
     - topmed
     - bdc-dbGaP
+    - nida
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:

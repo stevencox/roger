@@ -4,10 +4,12 @@ import os
 import orjson as json
 import ntpath
 import pathlib
+import queue
 import redis
 import requests
 import shutil
 import sys
+import threading
 import time
 import yaml
 import pickle
@@ -23,6 +25,7 @@ from roger.components.data_conversion_utils import TypeConversionUtil
 from redisgraph_bulk_loader.bulk_insert import bulk_insert
 from roger.roger_db import RedisGraph
 from string import Template
+from urllib.request import urlretrieve
 
 log = get_logger ()
 config = get_config ()
@@ -268,6 +271,16 @@ class Util:
         return sorted(glob.glob(topmed_file_pattern))
 
     @staticmethod
+    def dug_nida_path(name):
+        """ NIDA source files"""
+        return Util.dug_input_files_path('nida') / name
+
+    @staticmethod
+    def dug_nida_objects():
+        nida_file_pattern = str(Util.dug_nida_path("NIDA-*.xml"))
+        return sorted(glob.glob(nida_file_pattern))
+
+    @staticmethod
     def dug_dd_xml_path():
         """ Topmed source files"""
         return Util.dug_input_files_path('db_gap')
@@ -342,7 +355,43 @@ class Util:
         for line in f:
             yield json.loads(line)
         f.close()
-        
+
+    @staticmethod
+    def downloadfile(thread_num, inputq, doneq):
+        url = ""
+        t0 = 0
+        pct = 0
+
+        def downloadprogress(blocknumber, readsize, totalfilesize):
+            nonlocal thread_num
+            nonlocal url, t0, pct
+            blocks_expected = int(totalfilesize/readsize) + (1 if totalfilesize%readsize != 0 else 0)
+            t1 = int(Util.current_time_in_millis()/1000)
+            elapsed_delta = t1 - t0
+            pct = int(100 * blocknumber / blocks_expected)
+            if elapsed_delta >= 30: # every n seconds
+                log.debug(f"thread-{thread_num} {pct}% of size:{totalfilesize} ({blocknumber}/{blocks_expected}) url:{url}")
+                t0 = t1
+
+        num_files_processed = 0
+        while inputq.empty() is False:
+            t0 = int(Util.current_time_in_millis()/1000)
+            url, dst = inputq.get()
+            num_files_processed += 1
+            log.debug(f"thread-{thread_num} downloading {url}")
+            try:
+                path, httpMessage = urlretrieve(url, dst, reporthook=downloadprogress)
+                if pct < 100:
+                    httpMessageKeys = httpMessage.keys()
+                    log.debug(f"thread-{thread_num} urlretrieve path:'{path}' http-keys:{httpMessageKeys} httpMessage:'{httpMessage.as_string()}")
+            except Exception as e:
+                log.error(f"thread-{thread_num} downloadfile excepton: {e}")
+                continue
+            log.debug(f"thread-{thread_num} downloaded {dst}")
+        doneq.put((thread_num,num_files_processed))
+        log.debug(f"thread-{thread_num} done!")
+        return
+
 class KGXModel:
     """ Abstractions for transforming Knowledge Graph Exchange formatted data. """
     def __init__(self, biolink=None, config=None):
@@ -376,9 +425,41 @@ class KGXModel:
         -------
 
         """
+        file_tuple_q = queue.Queue()
+        thread_done_q = queue.Queue()
+        for nfile, file_name in enumerate(files):
+            # file_url or skip
+            file_name = dataset_version + "/" + file_name
+            file_url = Util.get_uri(file_name, "kgx_base_data_uri")
+            subgraph_basename = os.path.basename(file_name)
+            subgraph_path = Util.kgx_path(subgraph_basename)
+            if os.path.exists(subgraph_path):
+                log.info(f"cached kgx: {subgraph_path}")
+                continue
+            log.debug ("#{}/{} to get: {}".format(nfile+1, len(files), file_url))
+            # folder
+            dirname = os.path.dirname (subgraph_path)
+            if not os.path.exists (dirname):
+                os.makedirs (dirname, exist_ok=True)
+            # add to queue
+            file_tuple_q.put((file_url,subgraph_path))
+
+        # start threads for each file download
+        threads = []
+        for thread_num in range(len(files)): # len(files)
+            th = threading.Thread(target=Util.downloadfile, args=(thread_num, file_tuple_q, thread_done_q))
+            th.start()
+            threads.append(th)
+
+        # wait for each thread to complete
+        for nwait in range(len(threads)):
+            thread_num, num_files_processed = thread_done_q.get()
+            th = threads[thread_num]
+            th.join()
+            log.debug(f"#{nwait+1}/{len(threads)} joined: thread-{thread_num} processed: {num_files_processed} file(s)")
+
         all_kgx_files = []
-        log.info(f"getting {files}")
-        for file_name in files:
+        for nfile, file_name in enumerate(files):
             start = Util.current_time_in_millis()
             file_name = dataset_version + "/" + file_name
             file_url = Util.get_uri(file_name, "kgx_base_data_uri")
@@ -388,13 +469,14 @@ class KGXModel:
             if os.path.exists(subgraph_path):
                 log.info(f"cached kgx: {subgraph_path}")
                 continue
+            log.debug ("#{}/{} read: {}".format(nfile+1, len(files), file_url))
             subgraph = Util.read_object(file_url)
             Util.write_object(subgraph, subgraph_path)
             total_time = Util.current_time_in_millis() - start
             edges = len(subgraph['edges'])
             nodes = len(subgraph['nodes'])
-            log.debug("wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format(
-                Util.trunc(subgraph_path, 45), edges, nodes, total_time))
+            log.debug("#{}/{} edges:{:>7} nodes: {:>7} time:{:>8} wrote: {}".format(
+                nfile+1, len(files), edges, nodes, total_time/1000, subgraph_path))
         return all_kgx_files
 
     def get_kgx_jsonl_format(self, files, dataset_version):
@@ -420,7 +502,6 @@ class KGXModel:
                 paired_up.append([file_name, file_name.replace('nodes', 'edges')])
         error = False
         # validate that all pairs exist
-        all_kgx_files = []
         if len(files) / 2 != len(paired_up):
             log.error("Error paired up kgx jsonl files don't match list of files specified in metadata.yaml")
             error = True
@@ -434,7 +515,37 @@ class KGXModel:
         if error:
             raise Exception("Metadata.yaml has inconsistent jsonl files")
 
+        file_tuple_q = queue.Queue()
+        thread_done_q = queue.Queue()
+        for npairs, pairs in enumerate(paired_up):
+            for npair, p in enumerate(pairs):
+                file_name = dataset_version + "/" + p
+                file_url = Util.get_uri(file_name, "kgx_base_data_uri")
+                subgraph_basename = os.path.basename(file_name)
+                subgraph_path = Util.kgx_path(subgraph_basename)
+                log.debug ("#{}.{}/{} read: {}".format(npairs+1, npair+1, len(paired_up), file_url))
+                # folder
+                dirname = os.path.dirname (subgraph_path)
+                if not os.path.exists (dirname):
+                    os.makedirs (dirname, exist_ok=True)
+                # add to queue
+                file_tuple_q.put((file_url,subgraph_path))
 
+        # start threads for each file download
+        threads = []
+        for thread_num in range(file_tuple_q.qsize()):
+            th = threading.Thread(target=Util.downloadfile, args=(thread_num, file_tuple_q, thread_done_q))
+            th.start()
+            threads.append(th)
+
+        # wait for each thread to complete
+        for nwait in range(len(threads)):
+            thread_num, num_files_processed = thread_done_q.get()
+            th = threads[thread_num]
+            th.join()
+            log.debug(f"#{nwait+1}/{len(threads)} joined: thread-{thread_num} processed: {num_files_processed} file(s)")
+
+        all_kgx_files = []
         for pairs in paired_up:
             nodes = 0
             edges = 0
@@ -467,7 +578,7 @@ class KGXModel:
         data_set_list = self.config.kgx.data_sets
         for item in metadata['kgx']['versions']:
             if item['version'] == dataset_version and item['name'] in data_set_list:
-                log.info(f"Getting KGX dataset {item['name']} , version {item['version']}, format {item['format']}")
+                log.info(f"Getting KGX dataset {item['name']} , version {item['version']}")
                 if item['format'] == 'json':
                     kgx_files_remote = self.get_kgx_json_format(item['files'], item['version'])
                 elif item['format'] == 'jsonl':
@@ -495,7 +606,7 @@ class KGXModel:
         """
         dug_kgx_files = Util.dug_kgx_objects()
         all_kgx_files = []
-        log.info(f"Coping dug KGX files to {Util.kgx_path('')}. Found {len(dug_kgx_files)} kgx files to copy.")
+        log.info(f"Copying dug KGX files to {Util.kgx_path('')}. Found {len(dug_kgx_files)} kgx files to copy.")
         for file in dug_kgx_files:
             file_name = ntpath.basename(file)
             dest = Util.kgx_path(file_name)
@@ -503,7 +614,7 @@ class KGXModel:
             Util.write_object({}, dest)
             log.info(f"Copying from {file} to {dest}.")
             Util.copy_file_to_dir(file, dest)
-        log.info("Done coping dug KGX files.")
+        log.info("Done copying dug KGX files.")
         return all_kgx_files
 
     def create_nodes_schema(self):
