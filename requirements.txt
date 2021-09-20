@@ -8,9 +8,8 @@ redisgraph-bulk-loader==0.9.5
 requests<2.24.0
 pytest==6.2.2
 PyYAML==5.3.1
-git+git://github.com/biolink/biolink-model-toolkit@0.4.0#egg=bmt
-git+git://github.com/helxplatform/dug@2.4.0#egg=dug
+git+git://github.com/helxplatform/dug@2.5.0#egg=dug
 elasticsearch==7.11.0
 biolinkml>=1.5.10
 orjson
-git+git://github.com/biolink/kgx@1.0.0#egg=kgx
+kgx==1.5.1

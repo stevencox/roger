@@ -15,8 +15,8 @@ kgx_base_data_uri: https://stars.renci.org/var/kgx_data/
 annotation_base_data_uri: https://stars.renci.org/var/dug/
 
 kgx:
-  biolink_model_version: 1.5.0
-  dataset_version: v2.0
+  biolink_model_version: 2.1.0
+  dataset_version: v3.0
   data_sets:
     - baseline-graph
 
@@ -41,7 +41,7 @@ bulk_loader:
 
 annotation:
   annotator: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
-  normalizer: "https://nodenormalization-sri.renci.org/1.1/get_normalized_nodes?curie="
+  normalizer: "https://nodenormalization-sri-dev.renci.org/1.1/get_normalized_nodes?curie="
   synonym_service: "https://onto.renci.org/synonyms/"
   ontology_metadata: "https://api.monarchinitiative.org/api/bioentity/"
   preprocessor:
@@ -61,7 +61,9 @@ indexing:
     "disease": ["disease", "phenotypic_feature"]
     "pheno": ["phenotypic_feature", "disease"]
     "anat": ["disease", "anatomical_entity"]
-    "chem_to_disease": ["chemical_substance", "disease"]
+    "chem_to_disease": ["chemical_entity", "disease"]
+    "small_molecule_to_disease": ["small_molecule", "disease"]
+    "chemical_mixture_to_disease": ["chemical_mixture", "disease"]
     "phen_to_anat": ["phenotypic_feature", "anatomical_entity"]
   tranql_endpoint: "http://tranql:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
 
