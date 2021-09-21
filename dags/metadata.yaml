@@ -19,6 +19,7 @@ kgx:
     - viral-proteome-v1.0.json
     version: v1.0
     name: baseline-graph
+    format: json
   - files:
     - biolink-v2.0.json
     - ctd-v2.0.json
@@ -38,10 +39,42 @@ kgx:
     - viral-proteome-v2.0.json
     version: v2.0
     name: baseline-graph
+    format: json
   - files:
       - heal/sparc/curation-export-processed.json
     version: v2.0
     name: sparc-kgx
+    format: json
+  - files:
+      - Biolink_edges_v3.0.jsonl
+      - Biolink_nodes_v3.0.jsonl
+      - CTD_edges_v3.0.jsonl
+      - CTD_nodes_v3.0.jsonl
+      - DrugCentral_edges_v3.0.jsonl
+      - DrugCentral_nodes_v3.0.jsonl
+      - GtoPdb_edges_v3.0.jsonl
+      - GtoPdb_nodes_v3.0.jsonl
+      - Hetio_edges_v3.0.jsonl
+      - Hetio_nodes_v3.0.jsonl
+      - HGNC_edges_v3.0.jsonl
+      - HGNC_nodes_v3.0.jsonl
+      - HMDB_edges_v3.0.jsonl
+      - HMDB_nodes_v3.0.jsonl
+      - HumanGOA_edges_v3.0.jsonl
+      - HumanGOA_nodes_v3.0.jsonl
+      - IntAct_edges_v3.0.jsonl
+      - IntAct_nodes_v3.0.jsonl
+      - OntologicalHierarchy_edges_v3.0.jsonl
+      - OntologicalHierarchy_nodes_v3.0.jsonl
+      - PANTHER_edges_v3.0.jsonl
+      - PANTHER_nodes_v3.0.jsonl
+      - PHAROS_edges_v3.0.jsonl
+      - PHAROS_nodes_v3.0.jsonl
+      - UberGraph_edges_v3.0.jsonl
+      - UberGraph_nodes_v3.0.jsonl
+    version: v3.0
+    name: baseline-graph
+    format: jsonl
   - version: test
     files:
     - panther.json

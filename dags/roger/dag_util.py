@@ -31,7 +31,7 @@ def task_wrapper(python_callable, **kwargs):
     config.dag_run = dag_run
     logger.info("Config")
     logger.info(config.dict)
-    return python_callable(to_string=True, config=config)
+    return python_callable(to_string=False, config=config)
 
 
 def get_executor_config(data_path='/opt/airflow/share/data'):
