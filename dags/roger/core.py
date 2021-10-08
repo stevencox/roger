@@ -239,10 +239,23 @@ class Util:
         return path
 
     @staticmethod
-    def mkdir(path):
-        directory = os.path.dirname(path)
+    def mkdir(path, is_dir=False):
+        directory = os.path.dirname(path) if not is_dir else path
         if not os.path.exists(directory):
             os.makedirs(directory)
+
+    @staticmethod
+    def remove(path):
+        if os.path.exists(path):
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+
+    @staticmethod
+    def clear_dir(path):
+        Util.remove(path)
+        Util.mkdir(path, is_dir=True)
 
     @staticmethod
     def dug_topmed_path(name):
@@ -363,12 +376,15 @@ class KGXModel:
         -------
 
         """
+        all_kgx_files = []
+        log.info(f"getting {files}")
         for file_name in files:
             start = Util.current_time_in_millis()
             file_name = dataset_version + "/" + file_name
             file_url = Util.get_uri(file_name, "kgx_base_data_uri")
             subgraph_basename = os.path.basename(file_name)
             subgraph_path = Util.kgx_path(subgraph_basename)
+            all_kgx_files.append(subgraph_path)
             if os.path.exists(subgraph_path):
                 log.info(f"cached kgx: {subgraph_path}")
                 continue
@@ -379,6 +395,7 @@ class KGXModel:
             nodes = len(subgraph['nodes'])
             log.debug("wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format(
                 Util.trunc(subgraph_path, 45), edges, nodes, total_time))
+        return all_kgx_files
 
     def get_kgx_jsonl_format(self, files, dataset_version):
         """
@@ -397,12 +414,13 @@ class KGXModel:
         """
         # make a paired list
         paired_up = []
+        log.info(f"getting {files}")
         for file_name in files:
             if "nodes" in file_name:
                 paired_up.append([file_name, file_name.replace('nodes', 'edges')])
         error = False
         # validate that all pairs exist
-
+        all_kgx_files = []
         if len(files) / 2 != len(paired_up):
             log.error("Error paired up kgx jsonl files don't match list of files specified in metadata.yaml")
             error = True
@@ -415,6 +433,8 @@ class KGXModel:
                 log.error(f"{pairs[1]} not in original list of files from metadata.yaml")
         if error:
             raise Exception("Metadata.yaml has inconsistent jsonl files")
+
+
         for pairs in paired_up:
             nodes = 0
             edges = 0
@@ -424,6 +444,7 @@ class KGXModel:
                 file_url = Util.get_uri(file_name, "kgx_base_data_uri")
                 subgraph_basename = os.path.basename(file_name)
                 subgraph_path = Util.kgx_path(subgraph_basename)
+                all_kgx_files.append(subgraph_path)
                 if os.path.exists(subgraph_path):
                     log.info(f"cached kgx: {subgraph_path}")
                     continue
@@ -436,7 +457,7 @@ class KGXModel:
             total_time = Util.current_time_in_millis() - start
             log.debug("wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format(
                 Util.trunc(subgraph_path, 45), edges, nodes, total_time))
-
+        return all_kgx_files
 
     def get (self, dataset_version = "v1.0"):
         """ Read metadata for KGX files and downloads them locally.
@@ -448,14 +469,24 @@ class KGXModel:
             if item['version'] == dataset_version and item['name'] in data_set_list:
                 log.info(f"Getting KGX dataset {item['name']} , version {item['version']}, format {item['format']}")
                 if item['format'] == 'json':
-                    self.get_kgx_json_format(item['files'], item['version'])
+                    kgx_files_remote = self.get_kgx_json_format(item['files'], item['version'])
                 elif item['format'] == 'jsonl':
-                    self.get_kgx_jsonl_format(item['files'], item['version'])
+                    kgx_files_remote = self.get_kgx_jsonl_format(item['files'], item['version'])
                 else:
                     raise ValueError(f"Unrecognized format in metadata.yaml: {item['format']}, valid formats are `json` "
                                      f"and `jsonl`.")
         # Fetchs kgx generated from Dug Annotation workflow.
-        self.fetch_dug_kgx()
+        new_files = self.fetch_dug_kgx() + kgx_files_remote
+        all_files_in_dir = Util.kgx_objects(format="json") + Util.kgx_objects(format="jsonl")
+        files_to_remove = [x for x in all_files_in_dir if x not in new_files]
+        if len(files_to_remove):
+            log.info(f"Found some old files to remove from kgx dir : {files_to_remove}")
+            for file in files_to_remove:
+                Util.remove(file)
+                log.info(f"removed {file}")
+        log.info("Done.")
+
+
 
     def fetch_dug_kgx(self):
         """
@@ -463,15 +494,17 @@ class KGXModel:
         :return:
         """
         dug_kgx_files = Util.dug_kgx_objects()
+        all_kgx_files = []
         log.info(f"Coping dug KGX files to {Util.kgx_path('')}. Found {len(dug_kgx_files)} kgx files to copy.")
         for file in dug_kgx_files:
             file_name = ntpath.basename(file)
             dest = Util.kgx_path(file_name)
+            all_kgx_files.append(dest)
             Util.write_object({}, dest)
             log.info(f"Copying from {file} to {dest}.")
             Util.copy_file_to_dir(file, dest)
         log.info("Done coping dug KGX files.")
-        return
+        return all_kgx_files
 
     def create_nodes_schema(self):
         """
@@ -589,6 +622,12 @@ class KGXModel:
                 pipeline.delete(key)
             pipeline.execute()
 
+    def delete_all_keys(self):
+        all_keys = self.redis_conn.keys("*")
+        log.info(f"found {len(all_keys)} to delete.")
+        self.delete_keys(all_keys)
+        log.info(f"deleted keys.")
+
     def write_redis_back_to_jsonl(self, file_name, redis_key_pattern):
         Util.mkdir(file_name)
         with open(file_name, 'w', encoding='utf-8') as f:
@@ -694,6 +733,9 @@ class KGXModel:
         jsonl_format_files = set([
             x.replace(f'nodes_{data_set_version}.jsonl', '').replace(f'edges_{data_set_version}.jsonl', '') for x in Util.kgx_objects("jsonl")
         ])
+
+        log.info("Deleting any redis merge keys from previous run....")
+        self.delete_all_keys()
 
         for file in json_format_files:
             current_metric = {}

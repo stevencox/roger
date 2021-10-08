@@ -534,8 +534,33 @@ class Dug:
                     raise Exception(f"Validation error - Did not find {element.id} for"
                                     f" Concept id : {concept.id}, Search term: {search_term}")
 
+    def clear_index(self, index_id):
+        exists = self.search_obj.es.indices.exists(index_id)
+        if exists:
+            log.info(f"Deleting index {index_id}")
+            response = self.search_obj.es.indices.delete(index_id)
+            log.info(f"Cleared Elastic : {response}")
+        log.info("Re-initializing the indicies")
+        self.search_obj.init_indices()
+
+    def clear_variables_index(self):
+        self.clear_index(self.variables_index)
+
+    def clear_kg_index(self):
+        self.clear_index(self.kg_index)
+
+    def clear_concepts_index(self):
+        self.clear_index(self.concepts_index)
 
 class DugUtil():
+
+    @staticmethod
+    def clear_annotation_cached(config=None, to_string=False):
+        with Dug(config, to_string=to_string) as dug:
+            annotation_path = Util.dug_annotation_path("")
+            Util.clear_dir(annotation_path)
+            # Clear http session cache
+            dug.cached_session.cache.clear()
 
     @staticmethod
     def annotate_db_gap_files(config=None, to_string=False, files=None):
@@ -564,6 +589,7 @@ class DugUtil():
     def make_kg_tagged(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
             output_base_path = Util.dug_kgx_path("")
+            Util.clear_dir(output_base_path)
             log.info("Starting building KGX files")
             elements_files = Util.dug_elements_objects()
             for file in elements_files:
@@ -582,6 +608,7 @@ class DugUtil():
     @staticmethod
     def index_variables(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
+            dug.clear_variables_index()
             elements_object_files = Util.dug_elements_objects()
             for file in elements_object_files:
                 dug.index_elements(file)
@@ -592,6 +619,9 @@ class DugUtil():
     def index_concepts(config=None, to_string=False):
         with Dug(config=config, to_string=to_string) as dug:
             # These are concepts that have knowledge graphs  from tranql
+            # clear out concepts and kg indicies from previous runs
+            dug.clear_concepts_index()
+            dug.clear_kg_index()
             expanded_concepts_files = Util.dug_expanded_concept_objects()
             for file in expanded_concepts_files:
                 concepts = Util.read_object(file)
@@ -613,6 +643,12 @@ class DugUtil():
     def crawl_tranql(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
             concepts_files = Util.dug_concepts_objects()
+            crawl_dir = Util.dug_crawl_path('crawl_output')
+            log.info(f'Clearing crawl output dir {crawl_dir}')
+            Util.clear_dir(crawl_dir)
+            expanded_concepts_dir = Util.dug_expanded_concepts_path("")
+            log.info(f'Clearing expanded concepts dir: {expanded_concepts_dir}')
+            Util.clear_dir(expanded_concepts_dir)
             log.info(f'Crawling Dug Concepts, found {len(concepts_files)} file(s).')
             for file in concepts_files:
                 data_set = Util.read_object(file)
@@ -696,6 +732,8 @@ def get_dbgap_files(config: RogerConfig, to_string=False) -> List[str]:
     meta_data = Util.read_relative_object ("../metadata.yaml")
     data_format = "dbGaP"
     output_dir: Path = Util.dug_input_files_path("db_gap")
+    # clear dir
+    Util.clear_dir(output_dir)
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
@@ -722,6 +760,8 @@ def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     meta_data = Util.read_relative_object("../metadata.yaml")
     data_format = "topmed"
     output_dir: Path = Util.dug_input_files_path("topmed")
+    # remove files from previous run if there are any
+    Util.clear_dir(output_dir)
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []

@@ -29,6 +29,8 @@ with DAG(
     get_topmed_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
     extract_db_gap_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
 
+    clear_annotation_items = create_python_task(dag, "clear_annotation_files", DugUtil.clear_annotation_cached)
+
     annotate_topmed_files = create_python_task(dag, "annotate_topmed_files", DugUtil.annotate_topmed_files)
     annotate_db_gap_files = create_python_task(dag, "annotate_db_gap_files", DugUtil.annotate_db_gap_files)
 
@@ -39,8 +41,8 @@ with DAG(
     )
 
     #intro >> run_printlog
-    intro >> get_topmed_files >> annotate_topmed_files >> dummy_stepover
-    intro >> extract_db_gap_files >> annotate_db_gap_files >> dummy_stepover
+    intro >> get_topmed_files >> clear_annotation_items >> annotate_topmed_files >> dummy_stepover
+    intro >> extract_db_gap_files >> clear_annotation_items >> annotate_db_gap_files >> dummy_stepover
     dummy_stepover >> make_kg_tagged
 
     #intro >> [get_topmed_files, extract_db_gap_files] >> dummy_stepover >>\
