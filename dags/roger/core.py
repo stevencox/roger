@@ -17,7 +17,7 @@ from enum import Enum
 from io import StringIO
 from kgx.utils.kgx_utils import prepare_data_dict as kgx_merge_dict
 from roger import ROGER_DATA_DIR
-from roger.Config import get_default_config as get_config
+from roger.config import get_default_config as get_config
 from roger.roger_util import get_logger
 from roger.components.data_conversion_utils import TypeConversionUtil
 from redisgraph_bulk_loader.bulk_insert import bulk_insert

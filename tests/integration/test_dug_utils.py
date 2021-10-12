@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from dug_helpers.dug_utils import FileFetcher, get_topmed_files, get_dbgap_files
-from roger.Config import config
+from roger.config import config
 
 
 def test_fetch_network_file():

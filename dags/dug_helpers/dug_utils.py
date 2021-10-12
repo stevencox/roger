@@ -18,9 +18,10 @@ from dug.core.factory import DugFactory
 from dug.core.parsers import Parser, DugElement
 from dug.core.search import Search
 
-from roger.Config import RogerConfig
+from roger.config import RogerConfig
 from roger.core import Util
 from roger.roger_util import get_logger
+from utils.s3 import S3Utils
 
 log = get_logger()
 
@@ -737,20 +738,24 @@ def get_dbgap_files(config: RogerConfig, to_string=False) -> List[str]:
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
+    s3_utils = S3Utils(config.s3_config)
     for item in meta_data["dug_inputs"]["versions"]:
         if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
             for filename in item["files"]:
-                remote_host = config.annotation_base_data_uri
-                fetch = FileFetcher(
-                    remote_host=remote_host,
-                    remote_dir=current_version,
-                    local_dir=output_dir)
-                zip_file_path = fetch(filename)
-                log.info(f"Unzipping {zip_file_path}")
-                tar = tarfile.open(zip_file_path)
+
+                output_name = filename.split('/')[-1]
+                output_path = output_dir / output_name
+
+                s3_utils.get(
+                    str(filename),
+                    str(output_path),
+                )
+
+                log.info(f"Unzipping {output_path}")
+                tar = tarfile.open(str(output_path))
                 tar.extractall(path=output_dir)
-                pulled_files.append(filename)
-    return [str(output_dir / filename) for filename in pulled_files]
+                pulled_files.append(output_path)
+    return [str(filename) for filename in pulled_files]
 
 
 def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
@@ -765,15 +770,19 @@ def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
+    s3_utils = S3Utils(config.s3_config)
     for item in meta_data["dug_inputs"]["versions"]:
         if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
             for filename in item["files"]:
-                remote_host = config.annotation_base_data_uri
-                fetch = FileFetcher(
-                    remote_host=remote_host,
-                    remote_dir=current_version,
-                    local_dir=output_dir)
-                fetch(filename)
-                pulled_files.append(filename)
-    return [str(output_dir / filename) for filename in pulled_files]
+
+                output_name = filename.split('/')[-1]
+                output_path = output_dir / output_name
+
+                s3_utils.get(
+                    str(filename),
+                    str(output_path),
+                )
+
+                pulled_files.append(output_path)
+    return [str(filename) for filename in pulled_files]
 
