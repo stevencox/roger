@@ -2,7 +2,7 @@ from contextlib import contextmanager
 
 import boto3
 
-from config.s3_config import S3Config
+from roger.config import S3Config
 
 
 class S3Utils:
