@@ -21,7 +21,7 @@ from dug.core.search import Search
 from roger.config import RogerConfig
 from roger.core import Util
 from roger.roger_util import get_logger
-from utils.s3 import S3Utils
+from utils.s3_utils import S3Utils
 
 log = get_logger()
 
