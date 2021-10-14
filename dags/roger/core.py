@@ -370,7 +370,7 @@ class Util:
             elapsed_delta = t1 - t0
             pct = int(100 * blocknumber / blocks_expected)
             if elapsed_delta >= 30: # every n seconds
-                log.debug(f"thread-{thread_num} {pct}% of size:{totalfilesize} ({blocknumber}/{blocks_expected}) url:{url}")
+                log.info(f"thread-{thread_num} {pct}% of size:{totalfilesize} ({blocknumber}/{blocks_expected}) url:{url}")
                 t0 = t1
 
         num_files_processed = 0
@@ -378,18 +378,18 @@ class Util:
             t0 = int(Util.current_time_in_millis()/1000)
             url, dst = inputq.get()
             num_files_processed += 1
-            log.debug(f"thread-{thread_num} downloading {url}")
+            log.info(f"thread-{thread_num} downloading {url}")
             try:
                 path, httpMessage = urlretrieve(url, dst, reporthook=downloadprogress)
                 if pct < 100:
                     httpMessageKeys = httpMessage.keys()
-                    log.debug(f"thread-{thread_num} urlretrieve path:'{path}' http-keys:{httpMessageKeys} httpMessage:'{httpMessage.as_string()}")
+                    log.info(f"thread-{thread_num} urlretrieve path:'{path}' http-keys:{httpMessageKeys} httpMessage:'{httpMessage.as_string()}")
             except Exception as e:
                 log.error(f"thread-{thread_num} downloadfile excepton: {e}")
                 continue
-            log.debug(f"thread-{thread_num} downloaded {dst}")
+            log.info(f"thread-{thread_num} downloaded {dst}")
         doneq.put((thread_num,num_files_processed))
-        log.debug(f"thread-{thread_num} done!")
+        log.info(f"thread-{thread_num} done!")
         return
 
 class KGXModel:
@@ -456,7 +456,7 @@ class KGXModel:
             thread_num, num_files_processed = thread_done_q.get()
             th = threads[thread_num]
             th.join()
-            log.debug(f"#{nwait+1}/{len(threads)} joined: thread-{thread_num} processed: {num_files_processed} file(s)")
+            log.info(f"#{nwait+1}/{len(threads)} joined: thread-{thread_num} processed: {num_files_processed} file(s)")
 
         all_kgx_files = []
         for nfile, file_name in enumerate(files):
@@ -469,13 +469,13 @@ class KGXModel:
             if os.path.exists(subgraph_path):
                 log.info(f"cached kgx: {subgraph_path}")
                 continue
-            log.debug ("#{}/{} read: {}".format(nfile+1, len(files), file_url))
+            log.info ("#{}/{} read: {}".format(nfile+1, len(files), file_url))
             subgraph = Util.read_object(file_url)
             Util.write_object(subgraph, subgraph_path)
             total_time = Util.current_time_in_millis() - start
             edges = len(subgraph['edges'])
             nodes = len(subgraph['nodes'])
-            log.debug("#{}/{} edges:{:>7} nodes: {:>7} time:{:>8} wrote: {}".format(
+            log.info("#{}/{} edges:{:>7} nodes: {:>7} time:{:>8} wrote: {}".format(
                 nfile+1, len(files), edges, nodes, total_time/1000, subgraph_path))
         return all_kgx_files
 
@@ -526,7 +526,7 @@ class KGXModel:
                 if os.path.exists(subgraph_path):
                     log.info(f"skip cached kgx: {subgraph_path}")
                     continue
-                log.debug ("#{}.{}/{} read: {}".format(npairs+1, npair+1, len(paired_up), file_url))
+                log.info ("#{}.{}/{} read: {}".format(npairs+1, npair+1, len(paired_up), file_url))
                 # folder
                 dirname = os.path.dirname (subgraph_path)
                 if not os.path.exists (dirname):
@@ -546,7 +546,7 @@ class KGXModel:
             thread_num, num_files_processed = thread_done_q.get()
             th = threads[thread_num]
             th.join()
-            log.debug(f"#{nwait+1}/{len(threads)} joined: thread-{thread_num} processed: {num_files_processed} file(s)")
+            log.info(f"#{nwait+1}/{len(threads)} joined: thread-{thread_num} processed: {num_files_processed} file(s)")
 
         all_kgx_files = []
         for pairs in paired_up:
@@ -569,7 +569,7 @@ class KGXModel:
                 else:
                     nodes = len(data.split('\n'))
             total_time = Util.current_time_in_millis() - start
-            log.debug("wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format(
+            log.info("wrote {:>45}: edges:{:>7} nodes: {:>7} time:{:>8}".format(
                 Util.trunc(subgraph_path, 45), edges, nodes, total_time))
         return all_kgx_files
 
