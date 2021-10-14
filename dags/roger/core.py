@@ -523,6 +523,9 @@ class KGXModel:
                 file_url = Util.get_uri(file_name, "kgx_base_data_uri")
                 subgraph_basename = os.path.basename(file_name)
                 subgraph_path = Util.kgx_path(subgraph_basename)
+                if os.path.exists(subgraph_path):
+                    log.info(f"skip cached kgx: {subgraph_path}")
+                    continue
                 log.debug ("#{}.{}/{} read: {}".format(npairs+1, npair+1, len(paired_up), file_url))
                 # folder
                 dirname = os.path.dirname (subgraph_path)
