@@ -864,6 +864,7 @@ def get_nida_files_stars(config: RogerConfig, to_string=False) -> List[str]:
                 pulled_files.append(filename)
     return [str(output_dir / filename) for filename in pulled_files]
 
+
 def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     if config.s3_config.enabled:
         return get_topmed_files_s3(config)
