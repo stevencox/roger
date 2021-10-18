@@ -575,6 +575,17 @@ class DugUtil():
         return output_log
 
     @staticmethod
+    def annotate_nida_files(config=None, to_string=False, files=None):
+        with Dug(config, to_string=to_string) as dug:
+            if files is None:
+                files = Util.dug_nida_objects()
+            parser_name = "NIDA"
+            dug.annotate_files(parser_name=parser_name,
+                               parsable_files=files)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
+
+    @staticmethod
     def annotate_topmed_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
@@ -757,6 +768,30 @@ def get_dbgap_files(config: RogerConfig, to_string=False) -> List[str]:
                 pulled_files.append(output_path)
     return [str(filename) for filename in pulled_files]
 
+def get_nida_files(config: RogerConfig, to_string=False) -> List[str]:
+    """
+    Fetches nida data files to input file directory
+    """
+    meta_data = Util.read_relative_object ("../metadata.yaml")
+    data_format = "nida"
+    output_dir: Path = Util.dug_input_files_path("nida")
+    current_version = config.dug_inputs.dataset_version
+    data_sets = config.dug_inputs.data_sets
+    pulled_files = []
+    for item in meta_data["dug_inputs"]["versions"]:
+        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
+            for filename in item["files"]:
+                remote_host = config.annotation_base_data_uri
+                fetch = FileFetcher(
+                    remote_host=remote_host,
+                    remote_dir=current_version,
+                    local_dir=output_dir)
+                zip_file_path = fetch(filename)
+                log.info(f"Unzipping {zip_file_path}")
+                tar = tarfile.open(zip_file_path)
+                tar.extractall(path=output_dir)
+                pulled_files.append(filename)
+    return [str(output_dir / filename) for filename in pulled_files]
 
 def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     """

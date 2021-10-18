@@ -97,4 +97,3 @@ dug_inputs:
       files:
         - "nida/v1.0/nida-12studies.tar.gz"
       format: dbGaP
-

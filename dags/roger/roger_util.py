@@ -30,5 +30,5 @@ def get_logger(name: str = 'roger') -> logging.Logger:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logger.setLevel(config['logging']['level'])
-        logger.propagate = False
+        logger.propagate = True
     return logger
