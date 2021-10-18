@@ -126,6 +126,7 @@ validation:
       - var: "[Zn+2]"
       - var: "[C-]#[O+]"
 s3:
+  enabled: false
   host: ""
   bucket: ""
   access_key: ""
