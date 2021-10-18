@@ -756,22 +756,23 @@ def get_dbgap_files_s3(config: RogerConfig, to_string=False) -> List[str]:
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
     s3_utils = S3Utils(config.s3_config)
-    for item in meta_data["dug_inputs"]["versions"]:
-        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
-            for filename in item["files"]:
+    for data_set in data_sets:
+        for item in meta_data["dug_inputs"]["versions"]:
+            if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
+                for filename in item["files"]:
 
-                output_name = filename.split('/')[-1]
-                output_path = output_dir / output_name
+                    output_name = filename.split('/')[-1]
+                    output_path = output_dir / output_name
 
-                s3_utils.get(
-                    str(filename),
-                    str(output_path),
-                )
+                    s3_utils.get(
+                        str(filename),
+                        str(output_path),
+                    )
 
-                log.info(f"Unzipping {output_path}")
-                tar = tarfile.open(str(output_path))
-                tar.extractall(path=output_dir)
-                pulled_files.append(output_path)
+                    log.info(f"Unzipping {output_path}")
+                    tar = tarfile.open(str(output_path))
+                    tar.extractall(path=output_dir)
+                    pulled_files.append(output_path)
     return [str(filename) for filename in pulled_files]
 
 
@@ -785,19 +786,20 @@ def get_dbgap_files_stars(config: RogerConfig, to_string=False) -> List[str]:
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
-    for item in meta_data["dug_inputs"]["versions"]:
-        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
-            for filename in item["files"]:
-                remote_host = config.annotation_base_data_uri
-                fetch = FileFetcher(
-                    remote_host=remote_host,
-                    remote_dir=current_version,
-                    local_dir=output_dir)
-                zip_file_path = fetch(filename)
-                log.info(f"Unzipping {zip_file_path}")
-                tar = tarfile.open(zip_file_path)
-                tar.extractall(path=output_dir)
-                pulled_files.append(filename)
+    for data_set in data_sets:
+        for item in meta_data["dug_inputs"]["versions"]:
+            if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
+                for filename in item["files"]:
+                    remote_host = config.annotation_base_data_uri
+                    fetch = FileFetcher(
+                        remote_host=remote_host,
+                        remote_dir=current_version,
+                        local_dir=output_dir)
+                    zip_file_path = fetch(filename)
+                    log.info(f"Unzipping {zip_file_path}")
+                    tar = tarfile.open(zip_file_path)
+                    tar.extractall(path=output_dir)
+                    pulled_files.append(filename)
     return [str(output_dir / filename) for filename in pulled_files]
 
 
@@ -820,22 +822,23 @@ def get_nida_files_s3(config: RogerConfig, to_string=False) -> List[str]:
     pulled_files = []
     s3_utils = S3Utils(config.s3_config)
 
-    for item in meta_data["dug_inputs"]["versions"]:
-        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
-            for filename in item["files"]:
+    for data_set in data_sets:
+        for item in meta_data["dug_inputs"]["versions"]:
+            if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
+                for filename in item["files"]:
 
-                output_name = filename.split('/')[-1]
-                output_path = output_dir / output_name
+                    output_name = filename.split('/')[-1]
+                    output_path = output_dir / output_name
 
-                s3_utils.get(
-                    str(filename),
-                    str(output_path),
-                )
+                    s3_utils.get(
+                        str(filename),
+                        str(output_path),
+                    )
 
-                log.info(f"Unzipping {output_path}")
-                tar = tarfile.open(str(output_path))
-                tar.extractall(path=output_dir)
-                pulled_files.append(output_path)
+                    log.info(f"Unzipping {output_path}")
+                    tar = tarfile.open(str(output_path))
+                    tar.extractall(path=output_dir)
+                    pulled_files.append(output_path)
     return [str(filename) for filename in pulled_files]
 
 
@@ -849,19 +852,20 @@ def get_nida_files_stars(config: RogerConfig, to_string=False) -> List[str]:
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
-    for item in meta_data["dug_inputs"]["versions"]:
-        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
-            for filename in item["files"]:
-                remote_host = config.annotation_base_data_uri
-                fetch = FileFetcher(
-                    remote_host=remote_host,
-                    remote_dir=current_version,
-                    local_dir=output_dir)
-                zip_file_path = fetch(filename)
-                log.info(f"Unzipping {zip_file_path}")
-                tar = tarfile.open(zip_file_path)
-                tar.extractall(path=output_dir)
-                pulled_files.append(filename)
+    for data_set in data_sets:
+        for item in meta_data["dug_inputs"]["versions"]:
+            if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
+                for filename in item["files"]:
+                    remote_host = config.annotation_base_data_uri
+                    fetch = FileFetcher(
+                        remote_host=remote_host,
+                        remote_dir=current_version,
+                        local_dir=output_dir)
+                    zip_file_path = fetch(filename)
+                    log.info(f"Unzipping {zip_file_path}")
+                    tar = tarfile.open(zip_file_path)
+                    tar.extractall(path=output_dir)
+                    pulled_files.append(filename)
     return [str(output_dir / filename) for filename in pulled_files]
 
 
@@ -885,19 +889,20 @@ def get_topmed_files_s3(config: RogerConfig) -> List[str]:
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
     s3_utils = S3Utils(config.s3_config)
-    for item in meta_data["dug_inputs"]["versions"]:
-        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
-            for filename in item["files"]:
+    for data_set in data_sets:
+        for item in meta_data["dug_inputs"]["versions"]:
+            if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
+                for filename in item["files"]:
 
-                output_name = filename.split('/')[-1]
-                output_path = output_dir / output_name
+                    output_name = filename.split('/')[-1]
+                    output_path = output_dir / output_name
 
-                s3_utils.get(
-                    str(filename),
-                    str(output_path),
-                )
+                    s3_utils.get(
+                        str(filename),
+                        str(output_path),
+                    )
 
-                pulled_files.append(output_path)
+                    pulled_files.append(output_path)
     return [str(filename) for filename in pulled_files]
 
 
@@ -911,15 +916,16 @@ def get_topmed_files_stars(config: RogerConfig, to_string=False) -> List[str]:
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
-    for item in meta_data["dug_inputs"]["versions"]:
-        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
-            for filename in item["files"]:
-                remote_host = config.annotation_base_data_uri
-                fetch = FileFetcher(
-                    remote_host=remote_host,
-                    remote_dir=current_version,
-                    local_dir=output_dir)
-                fetch(filename)
-                pulled_files.append(filename)
+    for data_set in data_sets:
+        for item in meta_data["dug_inputs"]["versions"]:
+            if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
+                for filename in item["files"]:
+                    remote_host = config.annotation_base_data_uri
+                    fetch = FileFetcher(
+                        remote_host=remote_host,
+                        remote_dir=current_version,
+                        local_dir=output_dir)
+                    fetch(filename)
+                    pulled_files.append(filename)
     return [str(output_dir / filename) for filename in pulled_files]
 
