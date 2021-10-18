@@ -61,6 +61,7 @@ if __name__ == "__main__":
         get_dbgap_files(config)
 
     if args.load_and_annotate:
+        DugUtil.clear_annotation_cached(config=config)
         DugUtil.annotate_db_gap_files(config=config)
         DugUtil.annotate_topmed_files(config=config)
 

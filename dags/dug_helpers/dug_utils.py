@@ -534,8 +534,33 @@ class Dug:
                     raise Exception(f"Validation error - Did not find {element.id} for"
                                     f" Concept id : {concept.id}, Search term: {search_term}")
 
+    def clear_index(self, index_id):
+        exists = self.search_obj.es.indices.exists(index_id)
+        if exists:
+            log.info(f"Deleting index {index_id}")
+            response = self.search_obj.es.indices.delete(index_id)
+            log.info(f"Cleared Elastic : {response}")
+        log.info("Re-initializing the indicies")
+        self.search_obj.init_indices()
+
+    def clear_variables_index(self):
+        self.clear_index(self.variables_index)
+
+    def clear_kg_index(self):
+        self.clear_index(self.kg_index)
+
+    def clear_concepts_index(self):
+        self.clear_index(self.concepts_index)
 
 class DugUtil():
+
+    @staticmethod
+    def clear_annotation_cached(config=None, to_string=False):
+        with Dug(config, to_string=to_string) as dug:
+            annotation_path = Util.dug_annotation_path("")
+            Util.clear_dir(annotation_path)
+            # Clear http session cache
+            dug.cached_session.cache.clear()
 
     @staticmethod
     def annotate_db_gap_files(config=None, to_string=False, files=None):
@@ -543,6 +568,17 @@ class DugUtil():
             if files is None:
                 files = Util.dug_dd_xml_objects()
             parser_name = "DbGaP"
+            dug.annotate_files(parser_name=parser_name,
+                               parsable_files=files)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
+
+    @staticmethod
+    def annotate_nida_files(config=None, to_string=False, files=None):
+        with Dug(config, to_string=to_string) as dug:
+            if files is None:
+                files = Util.dug_nida_objects()
+            parser_name = "NIDA"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
             output_log = dug.log_stream.getvalue() if to_string else ''
@@ -564,6 +600,7 @@ class DugUtil():
     def make_kg_tagged(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
             output_base_path = Util.dug_kgx_path("")
+            Util.clear_dir(output_base_path)
             log.info("Starting building KGX files")
             elements_files = Util.dug_elements_objects()
             for file in elements_files:
@@ -582,6 +619,7 @@ class DugUtil():
     @staticmethod
     def index_variables(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
+            dug.clear_variables_index()
             elements_object_files = Util.dug_elements_objects()
             for file in elements_object_files:
                 dug.index_elements(file)
@@ -592,6 +630,9 @@ class DugUtil():
     def index_concepts(config=None, to_string=False):
         with Dug(config=config, to_string=to_string) as dug:
             # These are concepts that have knowledge graphs  from tranql
+            # clear out concepts and kg indicies from previous runs
+            dug.clear_concepts_index()
+            dug.clear_kg_index()
             expanded_concepts_files = Util.dug_expanded_concept_objects()
             for file in expanded_concepts_files:
                 concepts = Util.read_object(file)
@@ -613,6 +654,12 @@ class DugUtil():
     def crawl_tranql(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
             concepts_files = Util.dug_concepts_objects()
+            crawl_dir = Util.dug_crawl_path('crawl_output')
+            log.info(f'Clearing crawl output dir {crawl_dir}')
+            Util.clear_dir(crawl_dir)
+            expanded_concepts_dir = Util.dug_expanded_concepts_path("")
+            log.info(f'Clearing expanded concepts dir: {expanded_concepts_dir}')
+            Util.clear_dir(expanded_concepts_dir)
             log.info(f'Crawling Dug Concepts, found {len(concepts_files)} file(s).')
             for file in concepts_files:
                 data_set = Util.read_object(file)
@@ -696,6 +743,8 @@ def get_dbgap_files(config: RogerConfig, to_string=False) -> List[str]:
     meta_data = Util.read_relative_object ("../metadata.yaml")
     data_format = "dbGaP"
     output_dir: Path = Util.dug_input_files_path("db_gap")
+    # clear dir
+    Util.clear_dir(output_dir)
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
@@ -714,6 +763,30 @@ def get_dbgap_files(config: RogerConfig, to_string=False) -> List[str]:
                 pulled_files.append(filename)
     return [str(output_dir / filename) for filename in pulled_files]
 
+def get_nida_files(config: RogerConfig, to_string=False) -> List[str]:
+    """
+    Fetches nida data files to input file directory
+    """
+    meta_data = Util.read_relative_object ("../metadata.yaml")
+    data_format = "nida"
+    output_dir: Path = Util.dug_input_files_path("nida")
+    current_version = config.dug_inputs.dataset_version
+    data_sets = config.dug_inputs.data_sets
+    pulled_files = []
+    for item in meta_data["dug_inputs"]["versions"]:
+        if item["version"] == current_version and item["name"] in data_sets and item["format"] == data_format:
+            for filename in item["files"]:
+                remote_host = config.annotation_base_data_uri
+                fetch = FileFetcher(
+                    remote_host=remote_host,
+                    remote_dir=current_version,
+                    local_dir=output_dir)
+                zip_file_path = fetch(filename)
+                log.info(f"Unzipping {zip_file_path}")
+                tar = tarfile.open(zip_file_path)
+                tar.extractall(path=output_dir)
+                pulled_files.append(filename)
+    return [str(output_dir / filename) for filename in pulled_files]
 
 def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     """
@@ -722,6 +795,8 @@ def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     meta_data = Util.read_relative_object("../metadata.yaml")
     data_format = "topmed"
     output_dir: Path = Util.dug_input_files_path("topmed")
+    # remove files from previous run if there are any
+    Util.clear_dir(output_dir)
     current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
