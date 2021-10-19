@@ -737,7 +737,7 @@ class FileFetcher:
 
 
 def get_dbgap_files(config: RogerConfig, to_string=False) -> List[str]:
-    if config.s3_config.enabled:
+    if config.dug_inputs.data_source == 's3':
         return get_dbgap_files_s3(config)
     else:
         return get_dbgap_files_stars(config)
@@ -804,8 +804,8 @@ def get_dbgap_files_stars(config: RogerConfig, to_string=False) -> List[str]:
 
 
 def get_nida_files(config: RogerConfig, to_string=False) -> List[str]:
-    if config.s3_config.enabled:
-        return get_nida_files_s3(config)
+    if config.dug_inputs.data_source == 's3':
+            return get_nida_files_s3(config)
     else:
         return get_nida_files_stars(config)
 
@@ -870,7 +870,7 @@ def get_nida_files_stars(config: RogerConfig, to_string=False) -> List[str]:
 
 
 def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
-    if config.s3_config.enabled:
+    if config.dug_inputs.data_source == 's3':
         return get_topmed_files_s3(config)
     else:
         return get_topmed_files_stars(config)

@@ -9,4 +9,3 @@ class S3Config(DictLike):
     bucket: str = ""
     access_key: str = ""
     secret_key: str = ""
-    enabled: bool = False

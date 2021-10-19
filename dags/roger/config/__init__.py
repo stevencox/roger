@@ -49,6 +49,7 @@ class KgxConfig(DictLike):
 
 @dataclass
 class DugInputsConfig(DictLike):
+    data_source: str = 'stars'
     dataset_version: str = "v1.0"
     data_sets: List = field(default_factory=lambda: ['topmed', 'bdc'])
 

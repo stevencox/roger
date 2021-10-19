@@ -21,6 +21,7 @@ kgx:
     - baseline-graph
 
 dug_inputs:
+  data_source: s3
   dataset_version: v1.0
   data_sets:
     - topmed
@@ -126,7 +127,6 @@ validation:
       - var: "[Zn+2]"
       - var: "[C-]#[O+]"
 s3:
-  enabled: false
   host: ""
   bucket: ""
   access_key: ""
