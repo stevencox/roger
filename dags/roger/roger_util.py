@@ -1,7 +1,7 @@
 import logging
 import sys
 from typing import Optional
-from roger.Config import get_default_config
+from roger.config import get_default_config
 
 logger: Optional[logging.Logger] = None
 

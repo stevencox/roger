@@ -84,17 +84,26 @@ dug_inputs:
     - name: topmed
       version: v1.0
       files:
-        - topmed_variables_v2.0.csv
-        - topmed_tags_v2.0.json
+        s3:
+          - "topmed/v2.0/topmed_tags_v2.0.json"
+          - "topmed/v2.0/topmed_variables_v2.0.csv"
+        stars:
+          - topmed_variables_v2.0.csv
+          - topmed_tags_v2.0.json
       format: topmed
-    - name: bdc-dbGaP
+    - name: bdc
       version: v1.0
       files:
-        - bdc_dbgap_data_dicts.tar.gz
+        s3:
+          - "bdc/v1.0/bdc_dbgap_data_dicts.tar.gz"
+        stars:
+          - "bdc_dbgap_data_dicts.tar.gz"
       format: dbGaP
     - name: nida
       version: v1.0
       files:
-        - nida-12studies.tar.gz
+        s3:
+          - "nida/v1.0/nida-12studies.tar.gz"
+        stars:
+          - "nida-12studies.tar.gz"
       format: nida
-

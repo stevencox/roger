@@ -1,5 +1,7 @@
 argcomplete==1.12.0
 apache-airflow==2.1.2
+boto3==1.18.23
+botocore==1.21.23
 flatten-dict
 psycopg2-binary==2.8.6
 redis==3.5.3

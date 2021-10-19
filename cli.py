@@ -1,5 +1,5 @@
 from roger.core import RogerUtil
-from roger.Config import config
+from roger.config import config
 from roger.roger_util import get_logger
 from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
 import sys

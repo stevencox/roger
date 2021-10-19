@@ -21,10 +21,11 @@ kgx:
     - baseline-graph
 
 dug_inputs:
+  data_source: s3
   dataset_version: v1.0
   data_sets:
     - topmed
-    - bdc-dbGaP
+    - bdc
     - nida
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
@@ -125,3 +126,8 @@ validation:
       - var: "[Ag+]"
       - var: "[Zn+2]"
       - var: "[C-]#[O+]"
+s3:
+  host: ""
+  bucket: ""
+  access_key: ""
+  secret_key: ""
