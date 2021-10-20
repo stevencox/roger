@@ -772,6 +772,7 @@ def get_dbgap_files_s3(config: RogerConfig, to_string=False) -> List[str]:
             if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
                 for filename in item["files"]["s3"]:
 
+                    log.info(f"Fetching {filename}")
                     output_name = filename.split('/')[-1]
                     output_path = output_dir / output_name
 
@@ -801,6 +802,7 @@ def get_dbgap_files_stars(config: RogerConfig, to_string=False) -> List[str]:
         for item in meta_data["dug_inputs"]["versions"]:
             if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
                 for filename in item["files"]["stars"]:
+                    log.info(f"Fetching {filename}")
                     remote_host = config.annotation_base_data_uri
                     fetch = FileFetcher(
                         remote_host=remote_host,
@@ -837,6 +839,7 @@ def get_nida_files_s3(config: RogerConfig, to_string=False) -> List[str]:
         for item in meta_data["dug_inputs"]["versions"]:
             if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
                 for filename in item["files"]["s3"]:
+                    log.info(f"Fetching {filename}")
 
                     output_name = filename.split('/')[-1]
                     output_path = output_dir / output_name
@@ -867,6 +870,7 @@ def get_nida_files_stars(config: RogerConfig, to_string=False) -> List[str]:
         for item in meta_data["dug_inputs"]["versions"]:
             if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
                 for filename in item["files"]["stars"]:
+                    log.info(f"Fetching {filename}")
                     remote_host = config.annotation_base_data_uri
                     fetch = FileFetcher(
                         remote_host=remote_host,
@@ -903,10 +907,9 @@ def get_sparc_files_s3(config: RogerConfig, to_string=False) -> List[str]:
         for item in meta_data["dug_inputs"]["versions"]:
             if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
                 for filename in item["files"]["s3"]:
-
+                    log.info(f"Fetching {filename}")
                     output_name = filename.split('/')[-1]
                     output_path = output_dir / output_name
-
                     s3_utils.get(
                         str(filename),
                         str(output_path),
@@ -933,6 +936,7 @@ def get_sparc_files_stars(config: RogerConfig, to_string=False) -> List[str]:
         for item in meta_data["dug_inputs"]["versions"]:
             if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
                 for filename in item["files"]["stars"]:
+                    log.info(f"Fetching {filename}")
                     remote_host = config.annotation_base_data_uri
                     fetch = FileFetcher(
                         remote_host=remote_host,
