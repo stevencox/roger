@@ -14,7 +14,7 @@ from dug.core import get_parser, get_plugin_manager, DugConcept
 from dug.core.annotate import DugAnnotator, ConceptExpander
 from dug.core.crawler import Crawler
 from dug.core.factory import DugFactory
-from dug.core.parsers import Parser, DugElement
+from dug.core.parsers import Parser, DugElement, SciCrunchParser
 from dug.core.search import Search
 
 from roger.config import RogerConfig
@@ -75,7 +75,8 @@ class Dug:
         :return: None.
         """
         dug_plugin_manager = get_plugin_manager()
-        parser: Parser = get_parser(dug_plugin_manager.hook, parser_name)
+        # parser: Parser = get_parser(dug_plugin_manager.hook, parser_name)
+        parser: Parser = SciCrunchParser()
         output_base_path = Util.dug_annotation_path('')
         log.info("Parsing files")
         for parse_file in parsable_files:
@@ -589,7 +590,7 @@ class DugUtil():
         with Dug(config, to_string=to_string) as dug:
             if files is None:
                 files = Util.dug_sparc_objects()
-            parser_name = "NIDA"
+            parser_name = "SPARC"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
             output_log = dug.log_stream.getvalue() if to_string else ''
