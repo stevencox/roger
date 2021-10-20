@@ -14,7 +14,7 @@ from dug.core import get_parser, get_plugin_manager, DugConcept
 from dug.core.annotate import DugAnnotator, ConceptExpander
 from dug.core.crawler import Crawler
 from dug.core.factory import DugFactory
-from dug.core.parsers import Parser, DugElement, SciCrunchParser
+from dug.core.parsers import Parser, DugElement
 from dug.core.search import Search
 
 from roger.config import RogerConfig
@@ -75,8 +75,7 @@ class Dug:
         :return: None.
         """
         dug_plugin_manager = get_plugin_manager()
-        # parser: Parser = get_parser(dug_plugin_manager.hook, parser_name)
-        parser: Parser = SciCrunchParser()
+        parser: Parser = get_parser(dug_plugin_manager.hook, parser_name)
         output_base_path = Util.dug_annotation_path('')
         log.info("Parsing files")
         for parse_file in parsable_files:
