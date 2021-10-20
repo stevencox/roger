@@ -1,10 +1,11 @@
+import os
+
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 
-from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files, get_nida_files
+from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files, get_nida_files, get_sparc_files
 from roger.dag_util import default_args, create_python_task
-import os
 
 DAG_ID = 'annotate_dug'
 
@@ -38,15 +39,18 @@ with DAG(
     clear_annotation_items = create_python_task(dag, "clear_annotation_files", DugUtil.clear_annotation_cached)
 
     for i, data_set in enumerate(data_sets):
-        if data_set == "topmed":
-            prepare_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
-            annotate_files = create_python_task(dag, "annotate_topmed_files", DugUtil.annotate_topmed_files)
-        elif data_set == "bdc-dbGaP":
+        if data_set == "bdc":
             prepare_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
             annotate_files = create_python_task(dag, "annotate_db_gap_files", DugUtil.annotate_db_gap_files)
         elif data_set == "nida":
             prepare_files = create_python_task(dag, "get_nida_files", get_nida_files)
             annotate_files = create_python_task(dag, "annotate_nida_files", DugUtil.annotate_nida_files)
+        elif data_set == "sparc":
+            prepare_files = create_python_task(dag, "get_sparc_files", get_sparc_files)
+            annotate_files = create_python_task(dag, "annotate_sparc_files", DugUtil.annotate_sparc_files)
+        elif data_set == "topmed":
+            prepare_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
+            annotate_files = create_python_task(dag, "annotate_topmed_files", DugUtil.annotate_topmed_files)
 
         intro >> prepare_files
         prepare_files >> clear_annotation_items

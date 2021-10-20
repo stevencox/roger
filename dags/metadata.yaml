@@ -81,16 +81,6 @@ kgx:
     name: test
 dug_inputs:
   versions:
-    - name: topmed
-      version: v1.0
-      files:
-        s3:
-          - "topmed/v2.0/topmed_tags_v2.0.json"
-          - "topmed/v2.0/topmed_variables_v2.0.csv"
-        stars:
-          - topmed_variables_v2.0.csv
-          - topmed_tags_v2.0.json
-      format: topmed
     - name: bdc
       version: v1.0
       files:
@@ -107,3 +97,20 @@ dug_inputs:
         stars:
           - "nida-12studies.tar.gz"
       format: nida
+    - name: sparc
+      version: v1.0
+      files:
+        s3:
+          - "sparc/v1.0/sparc-dbgap-xml-formatted.tar.gz"
+        stars:
+          - "sparc-dbgap-xml-formatted.tar.gz"
+    - name: topmed
+      version: v1.0
+      files:
+        s3:
+          - "topmed/v2.0/topmed_tags_v2.0.json"
+          - "topmed/v2.0/topmed_variables_v2.0.csv"
+        stars:
+          - topmed_variables_v2.0.csv
+          - topmed_tags_v2.0.json
+      format: topmed
