@@ -589,7 +589,7 @@ class DugUtil():
         with Dug(config, to_string=to_string) as dug:
             if files is None:
                 files = Util.dug_sparc_objects()
-            parser_name = "SPARC"
+            parser_name = "SciCrunch"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
             output_log = dug.log_stream.getvalue() if to_string else ''
