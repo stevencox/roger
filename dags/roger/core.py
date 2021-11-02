@@ -17,6 +17,7 @@ from bmt import Toolkit
 from collections import defaultdict
 from enum import Enum
 from io import StringIO
+from functools import reduce
 from kgx.utils.kgx_utils import prepare_data_dict as kgx_merge_dict
 from roger import ROGER_DATA_DIR
 from roger.config import get_default_config as get_config
@@ -399,6 +400,8 @@ class KGXModel:
             config = get_config()
         self.config = config
         self.biolink_version = self.config.kgx.biolink_model_version
+        self.merge_db_id = self.config.kgx.merge_db_id
+        self.merge_db_name = f'db{self.merge_db_id}'
         log.debug(f"Trying to get biolink version : {self.biolink_version}")
         if biolink == None:
             self.biolink = BiolinkModel(self.biolink_version)
@@ -408,7 +411,7 @@ class KGXModel:
                     host=self.config.redisgraph.host,
                     port=self.config.redisgraph.port,
                     password=self.config.redisgraph.password,
-                    db=1) # uses db1 for isolation @TODO make this config param.
+                    db=self.merge_db_id)
         self.enable_metrics = self.config.get('enable_metrics', False)
 
     def get_kgx_json_format(self, files: list, dataset_version: str):
@@ -725,11 +728,26 @@ class KGXModel:
                 pipeline.set(key, json.dumps(items[key]))
             pipeline.execute()
 
+    def batch_keys(self, batch_size):
+        from itertools import zip_longest
+        keyspace = self.redis_conn.info('keyspace')
+        if self.merge_db_name not in keyspace:
+            log.info(f"found 0 keys to delete.")
+            return []
+        else:
+            keyspace = keyspace[self.merge_db_name]['keys']
+        log.info(f"found {keyspace} keys to delete.")
+        args = [self.redis_conn.scan_iter('*', batch_size)] * (keyspace + batch_size // batch_size)
+        return zip_longest(*args)
+
     def delete_keys(self, items):
         # deletes keys
         chunk_size = 10_000
         pipeline = self.redis_conn.pipeline()
         all_keys = list(items)
+        # flatten for efficient pipeline chunking
+        all_keys = reduce(lambda x, y: x + [i for i in y if i], all_keys, [])
+        log.info(f"grabbed {len(all_keys)}. Starting deletion in chunks of {chunk_size}")
         chunked_keys = [all_keys[start: start + chunk_size] for start in range(0, len(all_keys), chunk_size)]
         for keys in chunked_keys:
             for key in keys:
@@ -737,8 +755,7 @@ class KGXModel:
             pipeline.execute()
 
     def delete_all_keys(self):
-        all_keys = self.redis_conn.keys("*")
-        log.info(f"found {len(all_keys)} to delete.")
+        all_keys = self.batch_keys(10_000)
         self.delete_keys(all_keys)
         log.info(f"deleted keys.")
 
