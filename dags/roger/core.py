@@ -738,6 +738,7 @@ class KGXModel:
             for key in keys:
                 pipeline.set(key, json.dumps(items[key]))
             pipeline.execute()
+        log.debug(f"Wrote {len(all_keys)} to redis")
 
     def batch_keys(self, batch_size):
 
@@ -776,17 +777,20 @@ class KGXModel:
         Util.mkdir(file_name)
         with open(file_name, 'w', encoding='utf-8') as f:
             start = time.time()
+            log.debug(f"Key pattern: {redis_key_pattern}")
             keys = self.redis_conn.keys(redis_key_pattern)
-            log.info(f"Grabbing {redis_key_pattern} from redis too {time.time() - start}")
+            log.info(f"Grabbing {redis_key_pattern} from redis took {time.time() - start}")
             chunk_size = 500_000
             chunked_keys = [keys[start: start + chunk_size] for start in range(0, len(keys), chunk_size) ]
             for chunk in chunked_keys:
+                log.debug("Reading back from redis")
                 items = self.read_items_from_redis(chunk)
+                log.debug(f"found {len(items)} from redis")
                 self.delete_keys(chunk)
                 # transform them into lines
                 items = [json.dumps(items[x]).decode('utf-8') + '\n' for x in items]
                 f.writelines(items)
-                log.info(f"wrote : {len(items)}")
+                log.info(f"wrote : {len(items)} to file {file_name}")
 
     def kgx_merge_dict(self, dict_1, dict_2):
         # collect values that are same first
