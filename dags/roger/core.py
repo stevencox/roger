@@ -17,6 +17,7 @@ from bmt import Toolkit
 from collections import defaultdict
 from enum import Enum
 from io import StringIO
+from itertools import zip_longest
 from functools import reduce
 from kgx.utils.kgx_utils import prepare_data_dict as kgx_merge_dict
 from roger import ROGER_DATA_DIR
@@ -739,7 +740,7 @@ class KGXModel:
             pipeline.execute()
 
     def batch_keys(self, batch_size):
-        from itertools import zip_longest
+
         keyspace = self.redis_conn.info('keyspace')
         if self.merge_db_name not in keyspace:
             log.info(f"found 0 keys to delete.")
@@ -755,8 +756,10 @@ class KGXModel:
         chunk_size = 10_000
         pipeline = self.redis_conn.pipeline()
         all_keys = list(items)
+        is_items_zip_iter = isinstance(items, zip_longest)
         # flatten for efficient pipeline chunking
-        all_keys = reduce(lambda x, y: x + [i for i in y if i], all_keys, [])
+        if is_items_zip_iter:
+            all_keys = reduce(lambda x, y: x + [i for i in y if i], all_keys, [])
         log.info(f"grabbed {len(all_keys)}. Starting deletion in chunks of {chunk_size}")
         chunked_keys = [all_keys[start: start + chunk_size] for start in range(0, len(all_keys), chunk_size)]
         for keys in chunked_keys:
