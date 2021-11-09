@@ -740,27 +740,25 @@ class KGXModel:
             pipeline.execute()
         log.debug(f"Wrote {len(all_keys)} to redis")
 
-    def batch_keys(self, batch_size):
+    def batch_keys(self, batch_size, keys_pattern="*"):
 
         keyspace = self.redis_conn.info('keyspace')
         if self.merge_db_name not in keyspace:
-            log.info(f"found 0 keys to delete.")
+            log.info(f"found 0 keys.")
             return []
         else:
             keyspace = keyspace[self.merge_db_name]['keys']
-        log.info(f"found {keyspace} keys to delete.")
-        args = [self.redis_conn.scan_iter('*', batch_size)] * (keyspace + batch_size // batch_size)
-        return zip_longest(*args)
+        log.info(f"found {keyspace} total keys.")
+        args = [self.redis_conn.scan_iter(keys_pattern, batch_size)] * (keyspace + batch_size // batch_size)
+        current_keys = reduce(lambda x, y: x + [i for i in y if i], zip_longest(*args), [])
+        log.info(f"found {len(current_keys)} matches.")
+        return current_keys
 
     def delete_keys(self, items):
         # deletes keys
         chunk_size = 10_000
         pipeline = self.redis_conn.pipeline()
-        all_keys = list(items)
-        is_items_zip_iter = isinstance(items, zip_longest)
-        # flatten for efficient pipeline chunking
-        if is_items_zip_iter:
-            all_keys = reduce(lambda x, y: x + [i for i in y if i], all_keys, [])
+        all_keys = items
         log.info(f"grabbed {len(all_keys)}. Starting deletion in chunks of {chunk_size}")
         chunked_keys = [all_keys[start: start + chunk_size] for start in range(0, len(all_keys), chunk_size)]
         for keys in chunked_keys:
@@ -778,7 +776,8 @@ class KGXModel:
         with open(file_name, 'w', encoding='utf-8') as f:
             start = time.time()
             log.debug(f"Key pattern: {redis_key_pattern}")
-            keys = self.redis_conn.keys(redis_key_pattern)
+            # this needs to be a scan too
+            keys = self.batch_keys(batch_size=10_000, keys_pattern=redis_key_pattern)
             log.info(f"Grabbing {redis_key_pattern} from redis took {time.time() - start}")
             chunk_size = 500_000
             chunked_keys = [keys[start: start + chunk_size] for start in range(0, len(keys), chunk_size) ]
