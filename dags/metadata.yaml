@@ -104,7 +104,7 @@ dug_inputs:
           - "sparc/v1.0/sparc-dbgap-xml-formatted.tar.gz"
         stars:
           - "sparc-dbgap-xml-formatted.tar.gz"
-      format: scicrunch
+      format: sparc
     - name: topmed
       version: v1.0
       files:
