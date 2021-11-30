@@ -289,7 +289,7 @@ class Util:
 
     @staticmethod
     def dug_sparc_objects():
-        file_pattern = str(Util.dug_sparc_path("outputs/*.xml"))
+        file_pattern = str(Util.dug_sparc_path("scicrunch/*.xml"))
         return sorted(glob.glob(file_pattern))
 
     @staticmethod
