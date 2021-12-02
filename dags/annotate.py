@@ -4,7 +4,8 @@ from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 
-from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files, get_nida_files, get_sparc_files
+from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
+from dug_helpers.dug_utils import get_nida_files, get_sparc_files
 from roger.dag_util import default_args, create_python_task
 
 DAG_ID = 'annotate_dug'
