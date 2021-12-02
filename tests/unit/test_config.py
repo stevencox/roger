@@ -1,6 +1,6 @@
 import os
 
-from roger.Config import RogerConfig, RedisConfig
+from roger.config import RogerConfig, RedisConfig
 
 
 def test_merge():

@@ -9,20 +9,10 @@ import yaml
 from dug.config import Config as DugConfig
 from flatten_dict import flatten, unflatten
 
-CONFIG_FILENAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.yaml')
+from ._base import DictLike
+from .s3_config import S3Config
 
-
-class DictLike:
-    def __getitem__(self, item):
-        if not hasattr(self, item):
-            raise KeyError(item)
-        return getattr(self, item)
-
-    def __setitem__(self, key, value):
-        setattr(self, key, value)
-
-    def get(self, key, default=None):
-        return getattr(self, key, default)
+CONFIG_FILENAME = Path(__file__).parent.resolve() / "config.yaml"
 
 
 @dataclass
@@ -47,6 +37,7 @@ class LoggingConfig(DictLike):
 class KgxConfig(DictLike):
     biolink_model_version: str = "1.5.0"
     dataset_version: str = "v1.0"
+    merge_db_id: int = 1
     data_sets: List = field(default_factory=lambda: ['baseline-graph'])
 
     def __post_init__(self):
@@ -56,10 +47,12 @@ class KgxConfig(DictLike):
         self.data_sets = [data_set.strip(" ") for data_set in self.data_sets.split(",")] \
             if isinstance(self.data_sets, str) else self.data_sets
 
+
 @dataclass
 class DugInputsConfig(DictLike):
+    data_source: str = 'stars'
     dataset_version: str = "v1.0"
-    data_sets: List = field(default_factory=lambda: ['topmed', 'bdc-dbGaP'])
+    data_sets: List = field(default_factory=lambda: ['topmed', 'bdc'])
 
     def __post_init__(self):
         # Convert strings to list. In cases where this is passed as env variable with a single value
@@ -147,6 +140,7 @@ class RogerConfig(DictLike):
         self.annotation = AnnotationConfig(**kwargs.pop('annotation', {}))
         self.indexing = IndexingConfig(**kwargs.pop('indexing', {}))
         self.elasticsearch = ElasticsearchConfig(**kwargs.pop('elasticsearch'))
+        self.s3_config = S3Config(**kwargs.pop('s3', {}))
 
         self.data_root: str = kwargs.pop("data_root", "")
         self.dug_data_root: str = kwargs.pop("dug_data_root", "")

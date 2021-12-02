@@ -53,7 +53,7 @@ test: test.unit test.integration
 #build: Build the Docker image
 build:
 	echo "Building docker image: ${DOCKER_IMAGE}"
-	docker build -t ${DOCKER_IMAGE} -f Dockerfile .
+	docker build --no-cache -t ${DOCKER_IMAGE} -f Dockerfile .
 	echo "Successfully built: ${DOCKER_IMAGE}"
 
 #publish: Push the Docker image

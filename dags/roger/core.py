@@ -17,9 +17,11 @@ from bmt import Toolkit
 from collections import defaultdict
 from enum import Enum
 from io import StringIO
+from itertools import zip_longest
+from functools import reduce
 from kgx.utils.kgx_utils import prepare_data_dict as kgx_merge_dict
 from roger import ROGER_DATA_DIR
-from roger.Config import get_default_config as get_config
+from roger.config import get_default_config as get_config
 from roger.roger_util import get_logger
 from roger.components.data_conversion_utils import TypeConversionUtil
 from redisgraph_bulk_loader.bulk_insert import bulk_insert
@@ -276,9 +278,19 @@ class Util:
         return Util.dug_input_files_path('nida') / name
 
     @staticmethod
+    def dug_sparc_path(name):
+        """ NIDA source files"""
+        return Util.dug_input_files_path('sparc') / name
+
+    @staticmethod
     def dug_nida_objects():
         nida_file_pattern = str(Util.dug_nida_path("NIDA-*.xml"))
         return sorted(glob.glob(nida_file_pattern))
+
+    @staticmethod
+    def dug_sparc_objects():
+        file_pattern = str(Util.dug_sparc_path("scicrunch/*.xml"))
+        return sorted(glob.glob(file_pattern))
 
     @staticmethod
     def dug_dd_xml_path():
@@ -399,6 +411,8 @@ class KGXModel:
             config = get_config()
         self.config = config
         self.biolink_version = self.config.kgx.biolink_model_version
+        self.merge_db_id = self.config.kgx.merge_db_id
+        self.merge_db_name = f'db{self.merge_db_id}'
         log.debug(f"Trying to get biolink version : {self.biolink_version}")
         if biolink == None:
             self.biolink = BiolinkModel(self.biolink_version)
@@ -408,7 +422,7 @@ class KGXModel:
                     host=self.config.redisgraph.host,
                     port=self.config.redisgraph.port,
                     password=self.config.redisgraph.password,
-                    db=1) # uses db1 for isolation @TODO make this config param.
+                    db=self.merge_db_id)
         self.enable_metrics = self.config.get('enable_metrics', False)
 
     def get_kgx_json_format(self, files: list, dataset_version: str):
@@ -724,12 +738,28 @@ class KGXModel:
             for key in keys:
                 pipeline.set(key, json.dumps(items[key]))
             pipeline.execute()
+        log.debug(f"Wrote {len(all_keys)} to redis")
+
+    def batch_keys(self, batch_size, keys_pattern="*"):
+
+        keyspace = self.redis_conn.info('keyspace')
+        if self.merge_db_name not in keyspace:
+            log.info(f"found 0 keys.")
+            return []
+        else:
+            keyspace = keyspace[self.merge_db_name]['keys']
+        log.info(f"found {keyspace} total keys.")
+        args = [self.redis_conn.scan_iter(keys_pattern, batch_size)] * (keyspace + batch_size // batch_size)
+        current_keys = reduce(lambda x, y: x + [i for i in y if i], zip_longest(*args), [])
+        log.info(f"found {len(current_keys)} matches.")
+        return current_keys
 
     def delete_keys(self, items):
         # deletes keys
         chunk_size = 10_000
         pipeline = self.redis_conn.pipeline()
-        all_keys = list(items)
+        all_keys = items
+        log.info(f"grabbed {len(all_keys)}. Starting deletion in chunks of {chunk_size}")
         chunked_keys = [all_keys[start: start + chunk_size] for start in range(0, len(all_keys), chunk_size)]
         for keys in chunked_keys:
             for key in keys:
@@ -737,8 +767,7 @@ class KGXModel:
             pipeline.execute()
 
     def delete_all_keys(self):
-        all_keys = self.redis_conn.keys("*")
-        log.info(f"found {len(all_keys)} to delete.")
+        all_keys = self.batch_keys(10_000)
         self.delete_keys(all_keys)
         log.info(f"deleted keys.")
 
@@ -746,17 +775,21 @@ class KGXModel:
         Util.mkdir(file_name)
         with open(file_name, 'w', encoding='utf-8') as f:
             start = time.time()
-            keys = self.redis_conn.keys(redis_key_pattern)
-            log.info(f"Grabbing {redis_key_pattern} from redis too {time.time() - start}")
+            log.debug(f"Key pattern: {redis_key_pattern}")
+            # this needs to be a scan too
+            keys = self.batch_keys(batch_size=10_000, keys_pattern=redis_key_pattern)
+            log.info(f"Grabbing {redis_key_pattern} from redis took {time.time() - start}")
             chunk_size = 500_000
             chunked_keys = [keys[start: start + chunk_size] for start in range(0, len(keys), chunk_size) ]
             for chunk in chunked_keys:
+                log.debug("Reading back from redis")
                 items = self.read_items_from_redis(chunk)
+                log.debug(f"found {len(items)} from redis")
                 self.delete_keys(chunk)
                 # transform them into lines
                 items = [json.dumps(items[x]).decode('utf-8') + '\n' for x in items]
                 f.writelines(items)
-                log.info(f"wrote : {len(items)}")
+                log.info(f"wrote : {len(items)} to file {file_name}")
 
     def kgx_merge_dict(self, dict_1, dict_2):
         # collect values that are same first
