@@ -46,6 +46,7 @@ class Dug:
         graph_name = self.config["redisgraph"]["graph"]
         source = f"redis:{graph_name}"
         self.tranql_queries: dict = self.factory.build_tranql_queries(source)
+        self.node_to_element_queries: list = self.factory.build_element_extraction_parameters(source)
 
         indexing_config = config.indexing
         self.variables_index = indexing_config.get('variables_index')
@@ -430,9 +431,11 @@ class Dug:
         """
         crawl_dir = Util.dug_crawl_path('crawl_output')
         output_file_name = os.path.join(data_set_name, 'expanded_concepts.pickle')
+        extracted_dug_elements_file_name = os.path.join(data_set_name, 'extracted_graph_elements.pickle')
         output_file = Util.dug_expanded_concepts_path(output_file_name)
+        extracted_output_file = Util.dug_expanded_concepts_path(extracted_dug_elements_file_name)
         Path(crawl_dir).mkdir(parents=True, exist_ok=True)
-
+        extracted_dug_elements = []
         log.debug("Creating Dug Crawler object")
         crawler = Crawler(
             crawl_file="",
@@ -440,7 +443,7 @@ class Dug:
             annotator=None,
             tranqlizer=self.tranqlizer,
             tranql_queries=self.tranql_queries,
-            http_session=self.cached_session
+            http_session=self.cached_session,
         )
         crawler.crawlspace = crawl_dir
         counter = 0
@@ -450,11 +453,22 @@ class Dug:
             crawler.expand_concept(concept)
             concept.set_search_terms()
             concept.set_optional_terms()
+            for query in self.node_to_element_queries:
+                casting_config = query['casting_config']
+                tranql_source = query['tranql_source']
+                dug_element_type = query['output_dug_type']
+                extracted_dug_elements += crawler.expand_to_dug_element(
+                    concept=concept,
+                    casting_config=casting_config,
+                    dug_element_type=dug_element_type,
+                    tranql_source=tranql_source
+                )
             concept.clean()
             percent_complete = int((counter / total) * 100)
             if percent_complete % 10 == 0:
                 log.info(f"{percent_complete}%")
         Util.write_object(obj=concepts, path=output_file)
+        Util.write_object(obj=extracted_dug_elements, path=extracted_output_file)
 
     def index_concepts(self, concepts):
         log.info("Indexing Concepts")
@@ -552,6 +566,7 @@ class Dug:
     def clear_concepts_index(self):
         self.clear_index(self.concepts_index)
 
+
 class DugUtil():
 
     @staticmethod
@@ -632,6 +647,15 @@ class DugUtil():
         with Dug(config, to_string=to_string) as dug:
             dug.clear_variables_index()
             elements_object_files = Util.dug_elements_objects()
+            for file in elements_object_files:
+                dug.index_elements(file)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
+
+    @staticmethod
+    def index_extracted_elements(config=None, to_string=False):
+        with Dug(config, to_string=to_string) as dug:
+            elements_object_files = Util.dug_extracted_elements_objects()
             for file in elements_object_files:
                 dug.index_elements(file)
             output_log = dug.log_stream.getvalue() if to_string else ''

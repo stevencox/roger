@@ -117,7 +117,16 @@ class IndexingConfig(DictLike):
         "anat_to_pheno": ["anatomical_entity", "phenotypic_feature"],
     })
     tranql_endpoint: str = "http://tranql:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
+    # by default skips node to element queries
+    node_to_element_queries: dict = field(default_factory=lambda: {})
 
+    def __post_init__(self):
+        node_to_el_enabled = True if str(self.node_to_element_queries.get("enabled")).lower() == "true" else False
+        final_node_to_element_queries = {}
+        if node_to_el_enabled:
+            for key in filter(lambda k: k != "enabled", self.node_to_element_queries.keys()):
+                final_node_to_element_queries[key] = self.node_to_element_queries[key]
+        self.node_to_element_queries = final_node_to_element_queries
 
 @dataclass
 class ElasticsearchConfig(DictLike):
@@ -125,6 +134,7 @@ class ElasticsearchConfig(DictLike):
     username: str = "elastic"
     password: str = ""
     nboost_host: str = ""
+
 
 
 class RogerConfig(DictLike):
@@ -178,6 +188,7 @@ class RogerConfig(DictLike):
                 'min_tranql_score': self.indexing.tranql_min_score,
             },
             ontology_greenlist=self.annotation.ontology_greenlist,
+            node_to_element_queries=self.indexing.node_to_element_queries,
         )
 
     @property

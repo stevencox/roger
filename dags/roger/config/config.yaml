@@ -69,6 +69,10 @@ indexing:
     "chemical_mixture_to_disease": ["chemical_mixture", "disease"]
     "phen_to_anat": ["phenotypic_feature", "anatomical_entity"]
   tranql_endpoint: "http://tranql:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
+  node_to_element_queries:
+    enabled: false
+    cde:
+      node_type: biolink:Publication
 
 elasticsearch:
   host: elasticsearch

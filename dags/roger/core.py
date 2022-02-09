@@ -212,6 +212,11 @@ class Util:
         return sorted(glob.glob(file_pattern))
 
     @staticmethod
+    def dug_extracted_elements_objects():
+        file_pattern = Util.dug_expanded_concepts_path(os.path.join('*', 'extracted_graph_elements.pickle'))
+        return sorted(glob.glob(file_pattern))
+
+    @staticmethod
     def dug_crawl_path(name):
         return str(ROGER_DATA_DIR / 'dug' / 'crawl' / name)
 
@@ -851,6 +856,7 @@ class KGXModel:
         # add predicate labels to edges;
         for edge_id in edges:
             edges[edge_id]['predicate_label'] = self.biolink.get_label(edges[edge_id]['predicate'])
+            edges[edge_id]['id'] = edges[edge_id].get('id', edge_id.replace('edge-', ''))
         merge_time = time.time() - merge_time
         current_metric['merge_time'] = merge_time
         write_to_redis_time = time.time()

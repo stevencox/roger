@@ -79,6 +79,12 @@ kgx:
     files:
     - panther.json
     name: test
+  - version: v3.0
+    name: cde-graph
+    format: jsonl
+    files:
+      - cde/annotated_edges_v3.0.jsonl
+      - cde/annotated_nodes_v3.0.jsonl
 dug_inputs:
   versions:
     - name: bdc
