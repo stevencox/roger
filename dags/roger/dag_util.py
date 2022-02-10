@@ -29,8 +29,6 @@ def task_wrapper(python_callable, **kwargs):
         del kwargs['dag_run']
     # overrides values
     config.dag_run = dag_run
-    logger.info("Config")
-    logger.info(config.dict)
     return python_callable(to_string=False, config=config)
 
 
