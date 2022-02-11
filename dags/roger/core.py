@@ -598,13 +598,14 @@ class KGXModel:
         """
         metadata = Util.read_relative_object ("../metadata.yaml")
         data_set_list = self.config.kgx.data_sets
+        kgx_files_remote = []
         for item in metadata['kgx']['versions']:
             if item['version'] == dataset_version and item['name'] in data_set_list:
                 log.info(f"Getting KGX dataset {item['name']} , version {item['version']}")
                 if item['format'] == 'json':
-                    kgx_files_remote = self.get_kgx_json_format(item['files'], item['version'])
+                    kgx_files_remote += self.get_kgx_json_format(item['files'], item['version'])
                 elif item['format'] == 'jsonl':
-                    kgx_files_remote = self.get_kgx_jsonl_format(item['files'], item['version'])
+                    kgx_files_remote += self.get_kgx_jsonl_format(item['files'], item['version'])
                 else:
                     raise ValueError(f"Unrecognized format in metadata.yaml: {item['format']}, valid formats are `json` "
                                      f"and `jsonl`.")
