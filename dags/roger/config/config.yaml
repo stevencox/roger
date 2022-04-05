@@ -73,6 +73,12 @@ indexing:
     enabled: false
     cde:
       node_type: biolink:Publication
+      curie_prefix: "HEALCDE"
+      attribute_mapping:
+        name: "name"
+        desc: "summary"
+        collection_name: "cde_category"
+        collection_id: "cde_category"
 
 elasticsearch:
   host: elasticsearch

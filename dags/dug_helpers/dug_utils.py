@@ -454,6 +454,7 @@ class Dug:
             concept.set_search_terms()
             concept.set_optional_terms()
             for query in self.node_to_element_queries:
+                log.info(query)
                 casting_config = query['casting_config']
                 tranql_source = query['tranql_source']
                 dug_element_type = query['output_dug_type']
