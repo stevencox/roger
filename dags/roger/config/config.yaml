@@ -27,7 +27,7 @@ dug_inputs:
   data_sets:
     - topmed
     - bdc
-    - nida
+    - anvil
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:
@@ -43,6 +43,7 @@ bulk_loader:
   full_text_index: []
 
 annotation:
+  clear_http_cache: false
   annotator: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
   normalizer: "https://nodenormalization-sri.renci.org/get_normalized_nodes?conflate=false&curie="
   synonym_service: "https://onto.renci.org/synonyms/"

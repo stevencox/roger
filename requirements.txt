@@ -11,7 +11,7 @@ redisgraph-bulk-loader==0.9.5
 requests<2.24.0
 pytest==6.2.2
 PyYAML==5.3.1
-git+https://github.com/helxplatform/dug@v2.9.1
+git+https://github.com/helxplatform/dug@v2.9.2
 elasticsearch==7.11.0
 biolinkml>=1.5.10
 orjson

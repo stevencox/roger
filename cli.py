@@ -1,7 +1,7 @@
 from roger.core import RogerUtil
 from roger.config import config
 from roger.roger_util import get_logger
-from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
+from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files, get_sparc_files, get_anvil_files, get_nida_files
 import sys
 import argparse
 
@@ -59,12 +59,15 @@ if __name__ == "__main__":
     if args.get_dug_input_files:
         get_topmed_files(config)
         get_dbgap_files(config)
+        get_anvil_files(config)
+        # get_sparc_files(config)
+        # get_nida_files(config)
 
     if args.load_and_annotate:
         DugUtil.clear_annotation_cached(config=config)
         DugUtil.annotate_db_gap_files(config=config)
         DugUtil.annotate_topmed_files(config=config)
-
+        DugUtil.annotate_anvil_files(config=config)
     if args.make_tagged_kg:
         DugUtil.make_kg_tagged(config=config)
 

@@ -288,6 +288,11 @@ class Util:
         return Util.dug_input_files_path('sparc') / name
 
     @staticmethod
+    def dug_anvil_path():
+        """Anvil source files"""
+        return Util.dug_input_files_path('anvil')
+
+    @staticmethod
     def dug_nida_objects():
         nida_file_pattern = str(Util.dug_nida_path("NIDA-*.xml"))
         return sorted(glob.glob(nida_file_pattern))
@@ -296,6 +301,14 @@ class Util:
     def dug_sparc_objects():
         file_pattern = str(Util.dug_sparc_path("scicrunch/*.xml"))
         return sorted(glob.glob(file_pattern))
+
+    @staticmethod
+    def dug_anvil_objects():
+        file_path = Util.dug_anvil_path()
+        files = Util.get_files_recursive(
+            lambda file_name: not file_name.startswith('GapExchange_') and file_name.endswith('.xml'), file_path)
+        return sorted([str(f) for f in files])
+
 
     @staticmethod
     def dug_dd_xml_path():

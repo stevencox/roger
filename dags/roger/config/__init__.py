@@ -82,6 +82,7 @@ class AnnotationConfig(DictLike):
     normalizer: str = "https://nodenormalization-sri.renci.org/get_normalized_nodes?curie="
     synonym_service: str = "https://onto.renci.org/synonyms/"
     ontology_metadata: str = "https://api.monarchinitiative.org/api/bioentity/"
+    clear_http_cache: bool = False
     preprocessor: dict = field(default_factory=lambda:
         {
             "debreviator": {

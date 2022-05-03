@@ -121,3 +121,11 @@ dug_inputs:
           - topmed_variables_v2.0.csv
           - topmed_tags_v2.0.json
       format: topmed
+    - name: anvil
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/anvil_dbgap_data_dicts.tar.gz"
+        stars:
+          - "anvil_dbgap_data_dicts.tar.gz"
+      format: anvil
