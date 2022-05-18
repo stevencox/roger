@@ -41,16 +41,6 @@ spec:
         }
     }
     stages {
-        stage('Install') {
-            steps {
-                container(name: 'kaniko', shell: '/busybox/sh') {
-                    sh '''
-                    PYTHONPATH=dags /usr/bin/env python3 -m pip install --upgrade pip && \
-                        PYTHONPATH=dags /usr/bin/env python3 -m pip install -r requirements.txt
-                    '''
-                }
-            }
-        }
         // stage('Test') {
         //     steps {
         //         container('agent-docker') {
