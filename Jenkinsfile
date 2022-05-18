@@ -37,7 +37,7 @@ spec:
           items:
             - key: .dockerconfigjson
               path: config.json
-            '''
+'''
         }
     }
     stages {
@@ -62,7 +62,6 @@ spec:
                     sh '''
                     /kaniko/executor --dockerfile Dockerfile \
                         --context . \
-                        --verbosity debug \
                         --destination helxplatform/roger:new-jenkins-test-$BUILD_NUMBER
                     '''
                 }
