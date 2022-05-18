@@ -6,6 +6,6 @@ COPY requirements.txt requirements.txt
 USER airflow
 # dependency resolution taking hours eventually failing,
 # @TODO fix click lib dependency
-RUN python3 pip install -r requirements.txt && \
-    python3 pip uninstall -y elasticsearch-dsl
+RUN pip install -r requirements.txt && \
+    pip uninstall -y elasticsearch-dsl
 RUN rm -f requirements.txt
