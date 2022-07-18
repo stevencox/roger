@@ -66,6 +66,13 @@ spec:
         TAG4="latest"
     }
     stages {
+        stage('Test') {
+            steps {
+                sh '''
+                echo "Test stage"
+                '''
+            }
+        }
         stage('Build') {
             steps {
                 script {
@@ -78,13 +85,6 @@ spec:
                 always {
                     archiveArtifacts artifacts: 'image.tar', onlyIfSuccessful: true
                 }
-            }
-        }
-        stage('Test') {
-            steps {
-                sh '''
-                echo "Test stage"
-                '''
             }
         }
         stage('Publish') {
