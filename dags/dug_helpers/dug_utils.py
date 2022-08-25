@@ -602,6 +602,28 @@ class DugUtil():
         return output_log
 
     @staticmethod
+    def annotate_cancer_commons_files(config=None, to_string=False, files=None):
+        with Dug(config, to_string=to_string) as dug:
+            if files is None:
+                files = Util.dug_crdc_objects()
+            parser_name = "crdc"
+            dug.annotate_files(parser_name=parser_name,
+                               parsable_files=files)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
+
+    @staticmethod
+    def annotate_kids_first_files(config=None, to_string=False, files=None):
+        with Dug(config, to_string=to_string) as dug:
+            if files is None:
+                files = Util.dug_kfdrc_objects()
+            parser_name = "kfdrc"
+            dug.annotate_files(parser_name=parser_name,
+                               parsable_files=files)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
+
+    @staticmethod
     def annotate_nida_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
@@ -845,6 +867,15 @@ def get_sparc_files(config: RogerConfig, to_string=False) -> List[str]:
 
 def get_anvil_files(config: RogerConfig, to_string=False) -> List[str]:
     return get_versioned_files(config, "anvil", "anvil", data_store=config.dug_inputs.data_source, unzip=True)
+
+
+def get_kids_first_files(config: RogerConfig, to_string=False) -> List[str]:
+    return get_versioned_files(config, "kfdrc", "kfdrc", data_store=config.dug_inputs.data_source, unzip=True)
+
+
+def get_cancer_data_commons_files(config: RogerConfig, to_string=False) -> List[str]:
+    return get_versioned_files(config, "crdc", "crdc", data_store=config.dug_inputs.data_source, unzip=True)
+
 
 
 def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:

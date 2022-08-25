@@ -129,3 +129,15 @@ dug_inputs:
         stars:
           - "anvil_dbgap_data_dicts.tar.gz"
       format: anvil
+    - name: kfdrc
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/KFDRC.tar.gz"
+      format: kfdrc
+    - name: crdc
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/CRDC.tar.gz"
+      format: crdc

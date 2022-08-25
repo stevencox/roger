@@ -293,6 +293,16 @@ class Util:
         return Util.dug_input_files_path('anvil')
 
     @staticmethod
+    def dug_crdc_path():
+        """Anvil source files"""
+        return Util.dug_input_files_path('crdc')
+
+    @staticmethod
+    def dug_kfdrc_path():
+        """Anvil source files"""
+        return Util.dug_input_files_path('kfdrc')
+
+    @staticmethod
     def dug_nida_objects():
         nida_file_pattern = str(Util.dug_nida_path("NIDA-*.xml"))
         return sorted(glob.glob(nida_file_pattern))
@@ -305,6 +315,20 @@ class Util:
     @staticmethod
     def dug_anvil_objects():
         file_path = Util.dug_anvil_path()
+        files = Util.get_files_recursive(
+            lambda file_name: not file_name.startswith('GapExchange_') and file_name.endswith('.xml'), file_path)
+        return sorted([str(f) for f in files])
+
+    @staticmethod
+    def dug_crdc_objects():
+        file_path = Util.dug_crdc_path()
+        files = Util.get_files_recursive(
+            lambda file_name: not file_name.startswith('GapExchange_') and file_name.endswith('.xml'), file_path)
+        return sorted([str(f) for f in files])
+
+    @staticmethod
+    def dug_kfdrc_objects():
+        file_path = Util.dug_kfdrc_path()
         files = Util.get_files_recursive(
             lambda file_name: not file_name.startswith('GapExchange_') and file_name.endswith('.xml'), file_path)
         return sorted([str(f) for f in files])
@@ -1285,9 +1309,24 @@ class BulkLoad:
         log.debug(f"Calling bulk_insert with extended args: {args}")
         try:
             bulk_insert (args, standalone_mode=False)
+            self.add_indexes()
         except Exception as e:
             log.error(f"Unexpected {e.__class__.__name__}: {e}")
             raise
+
+    def add_indexes(self):
+        redis_connection = self.get_redisgraph()
+        all_labels = redis_connection.query("Match (c) return distinct labels(c)").result_set
+        all_labels = reduce(lambda x, y: x + y, all_labels, [])
+        id_index_queries = [
+            f'CREATE INDEX on  :`{label}`(id)' for label in all_labels
+        ]
+        name_index_queries = "CALL db.labels() YIELD label CALL db.idx.fulltext.createNodeIndex(label, 'name', 'synonyms')"
+
+        for query in id_index_queries:
+            redis_connection.query(query=query)
+        redis_connection.query(query=name_index_queries)
+        log.info(f"Indexes created for {len(all_labels)} labels.")
 
     def get_redisgraph(self):
         return RedisGraph(

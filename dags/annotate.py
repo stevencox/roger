@@ -4,8 +4,9 @@ from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 
-from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files
-from dug_helpers.dug_utils import get_nida_files, get_sparc_files, get_anvil_files
+from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files,\
+    get_nida_files, get_sparc_files, get_anvil_files,\
+    get_cancer_data_commons_files, get_kids_first_files
 from roger.dag_util import default_args, create_python_task
 
 DAG_ID = 'annotate_dug'
@@ -55,6 +56,14 @@ with DAG(
         elif data_set == "anvil":
             prepare_files = create_python_task(dag, "get_anvil_data", get_anvil_files)
             annotate_files = create_python_task(dag, "annotate_anvil_files", DugUtil.annotate_anvil_files)
+        elif data_set == "crdc":
+            prepare_files = create_python_task(dag, "get_cancer_commons_files", get_cancer_data_commons_files)
+            annotate_files = create_python_task(dag, "annotate_cancer_commons_files",
+                                                DugUtil.annotate_cancer_commons_files)
+        elif data_set == "kfdrc":
+            prepare_files = create_python_task(dag, "get_kids_first_files", get_kids_first_files)
+            annotate_files = create_python_task(dag, "annotate_kids_first_files",
+                                                DugUtil.annotate_kids_first_files)
         intro >> prepare_files
         prepare_files >> clear_annotation_items
         clear_annotation_items >> annotate_files
