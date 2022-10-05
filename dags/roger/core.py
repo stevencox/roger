@@ -293,6 +293,11 @@ class Util:
         return Util.dug_input_files_path('anvil')
 
     @staticmethod
+    def dug_sprint_path():
+        """Anvil source files"""
+        return Util.dug_input_files_path('sprint')
+
+    @staticmethod
     def dug_crdc_path():
         """Anvil source files"""
         return Util.dug_input_files_path('crdc')
@@ -317,6 +322,13 @@ class Util:
         file_path = Util.dug_anvil_path()
         files = Util.get_files_recursive(
             lambda file_name: not file_name.startswith('GapExchange_') and file_name.endswith('.xml'), file_path)
+        return sorted([str(f) for f in files])
+
+    @staticmethod
+    def dug_sprint_objects():
+        file_path = Util.dug_sprint_path()
+        files = Util.get_files_recursive(
+            lambda file_name: file_name.endswith('.xml'), file_path)
         return sorted([str(f) for f in files])
 
     @staticmethod

@@ -141,3 +141,9 @@ dug_inputs:
         s3:
           - "bdc/v1.0/CRDC.tar.gz"
       format: crdc
+    - name: sprint
+      version: v1.0
+      files:
+        s3:
+          - "sprint/v1.0/StanfordSPRINT_DataDictionary_2020-12-16.tar.gz"
+      format: sprint
