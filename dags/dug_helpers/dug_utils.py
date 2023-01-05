@@ -669,6 +669,18 @@ class DugUtil():
         return output_log
 
     @staticmethod
+    def annotate_bacpac_files(config=None, to_string=False, files=None):
+        with Dug(config, to_string=to_string) as dug:
+            if files is None:
+                files = Util.dug_bacpac_objects()
+            parser_name = "BACPAC"
+            log.info(files)
+            dug.annotate_files(parser_name=parser_name,
+                               parsable_files=files)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
+
+    @staticmethod
     def make_kg_tagged(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
             output_base_path = Util.dug_kgx_path("")
@@ -891,6 +903,8 @@ def get_cancer_data_commons_files(config: RogerConfig, to_string=False) -> List[
 def get_sprint_files(config: RogerConfig, to_string=False) -> List[str]:
     return get_versioned_files(config, "sprint", "sprint", data_store=config.dug_inputs.data_source, unzip=True)
 
+def get_bacpac_files(config: RogerConfig, to_string=False) -> List[str]:
+    return get_versioned_files(config, "bacpac", "bacpac", data_store=config.dug_inputs.data_source, unzip=True)
 
 def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     return get_versioned_files(config, "topmed", "topmed", data_store=config.dug_inputs.data_source, unzip=False)

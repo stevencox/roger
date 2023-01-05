@@ -147,3 +147,9 @@ dug_inputs:
         s3:
           - "sprint/v1.0/StanfordSPRINT_DataDictionary_2020-12-16.tar.gz"
       format: sprint
+    - name: bacpac
+      version: v1.0
+      files:
+        s3:
+          - "heal-datasets/bacpac/bacpac_baseline_do_measures.tar.gz"
+      format: bacpac
