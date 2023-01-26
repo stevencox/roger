@@ -1,4 +1,4 @@
-FROM apache/airflow:2.1.2-python3.9
+FROM apache/airflow:2.5.0-python3.10
 USER root
 RUN apt-get update && \
     apt-get install -y git gcc python3-dev nano vim

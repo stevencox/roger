@@ -67,7 +67,7 @@ class Util:
         :param path: Path to a file.
         """
         text = None
-        with open(path, "r") as stream:
+        with open(path, "r", encoding='utf-8') as stream:
             text = stream.read ()
         return text
     
@@ -137,7 +137,7 @@ class Util:
             with open(path, 'w') as outfile:
                 yaml.dump (obj, outfile)
         elif path.endswith (".json"):
-            with open (path, "w") as stream:
+            with open (path, "w", encoding='utf-8') as stream:
                 stream.write(str(json.dumps (obj).decode('utf-8')))
         elif path.endswith(".pickle"):
             with open (path, "wb") as stream:
@@ -1006,7 +1006,7 @@ class KGXModel:
 class BiolinkModel:
     root_type = 'biolink:NamedThing'
 
-    def __init__(self, bl_version='1.5.0'):
+    def __init__(self, bl_version='v3.1.2'):
         self.bl_url = f'https://raw.githubusercontent.com/biolink/biolink-model/{bl_version}/biolink-model.yaml'
         self.toolkit = Toolkit(self.bl_url)
 

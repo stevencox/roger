@@ -127,10 +127,10 @@ class Dug:
     def make_edge(self,
                   subj,
                   obj,
-                  predicate='biolink:association',
-                  predicate_label='association',
-                  relation='biolink:association',
-                  relation_label='association'
+                  predicate='biolink:related_to',
+                  predicate_label='related to',
+                  relation='biolink:related_to',
+                  relation_label='related to'
                   ):
         """
         Create an edge between two nodes.
@@ -156,7 +156,7 @@ class Dug:
             "provided_by": "renci.bdc.semanticsearch.annotator"
         }
 
-    def convert_to_kgx_json(self, elements):
+    def convert_to_kgx_json(self, elements, written_nodes=set()):
         """
         Given an annotated and normalized set of study variables,
         generate a KGX compliant graph given the normalized annotations.
@@ -169,7 +169,7 @@ class Dug:
         }
         edges = graph['edges']
         nodes = graph['nodes']
-        written_nodes = set()
+
         for index, element in enumerate(elements):
             # DugElement means a variable (Study variable...)
             if not isinstance(element, DugElement):
@@ -178,7 +178,7 @@ class Dug:
             if study_id not in written_nodes:
                 nodes.append({
                     "id": study_id,
-                    "category": ["biolink:ClinicalTrial"],
+                    "category": ["biolink:Study"],
                     "name": study_id
                 })
                 written_nodes.add(study_id)
@@ -202,7 +202,7 @@ class Dug:
             variable_node = {
                 "id": element.id,
                 "name": element.name,
-                "category": ["biolink:ClinicalModifier"],
+                "category": ["biolink:StudyVariable"],
                 "description": element.description.replace("'", '`') # bulk loader parsing issue
             }
             if element.id not in written_nodes:
@@ -234,20 +234,15 @@ class Dug:
                         "name": metadata.name
                     })
                     written_nodes.add(identifier)
+                # related to edge
                 edges.append(self.make_edge(
                     subj=element.id,
-                    relation='OBAN:association',
-                    obj=identifier,
-                    relation_label='association',
-                    predicate='biolink:Association',
-                    predicate_label='association'))
+                    obj=identifier
+                    ))
+                # related to edge
                 edges.append(self.make_edge(
                     subj=identifier,
-                    relation='OBAN:association',
-                    obj=element.id,
-                    relation_label='association',
-                    predicate='biolink:Association',
-                    predicate_label='association'))
+                    obj=element.id))
         return graph
 
     def make_tagged_kg(self, elements):
@@ -270,6 +265,7 @@ class Dug:
         tag_map = {}
         # @TODO extract this into config or maybe dug ??
         topmed_tag_concept_type = "TOPMed Phenotype Concept"
+        nodes_written = set()
         for tag in elements:
             if not (isinstance(tag, DugConcept) and tag.type == topmed_tag_concept_type):
                 continue
@@ -291,6 +287,7 @@ class Dug:
                     "category": node_types,
                     "synonyms": synonyms
                 })
+                nodes_written.add(identifier)
                 edges.append(self.make_edge(
                     subj=tag_id,
                     obj=identifier))
@@ -298,67 +295,10 @@ class Dug:
                     subj=identifier,
                     obj=tag_id))
 
-        """ Create nodes and edges to model variables, studies, and their
-        relationships to tags. """
-        for variable in elements:
-            if not isinstance(variable, DugElement):
-                continue
-            variable_id = variable.id
-            variable_name = variable.name
+        concepts_graph = self.convert_to_kgx_json(elements, written_nodes=nodes_written)
+        graph['nodes'] += concepts_graph['nodes']
+        graph['edges'] += concepts_graph['edges']
 
-            # These contain other concepts that the variable is annotate with.
-            # These But here we want to link them with topmed tags only
-            # The tags are supposed to be linked with the other concepts.
-            # So We will filter out the Topmed Tag here.
-            tag_ids = [x for x in variable.concepts.keys() if x.startswith('TOPMED.TAG')]
-            if len(tag_ids) != 1:
-                log.error(f"Topmed tags Tags for element {variable} > 1...")
-            study_id = variable.collection_id
-            study_name = variable.collection_name
-            tag_id = tag_ids[0]
-            if not study_id in studies:
-                nodes.append({
-                    "id": study_id,
-                    "name": study_name,
-                    "category": ["biolink:ClinicalTrial"]
-                })
-                studies[study_id] = study_id
-            nodes.append({
-                "id": variable_id,
-                "name": variable_name,
-                "category": ["biolink:ClinicalModifier"]
-            })
-            """ Link to its study.  """
-            edges.append(self.make_edge(
-                subj=variable_id,
-                predicate='biolink:part_of',
-                predicate_label='part of',
-                relation='BFO:0000050',
-                relation_label='part of',
-                obj=study_id))
-            edges.append(self.make_edge(
-                subj=study_id,
-                predicate='biolink:has_part',
-                predicate_label='has part',
-                relation='BFO:0000051',
-                relation_label='part of',
-                obj=variable_id))
-
-            """ Link to its tag. """
-            edges.append(self.make_edge(
-                subj=variable_id,
-                predicate='biolink:part_of',
-                predicate_label='part of',
-                relation='BFO:0000050',
-                relation_label='part of',
-                obj=tag_id))
-            edges.append(self.make_edge(
-                subj=tag_id,
-                predicate='biolink:has_part',
-                predicate_label='has part',
-                relation='BFO:0000051',
-                relation_label='has part',
-                obj=variable_id))
         return graph
 
     def index_elements(self, elements_file):
