@@ -13,13 +13,14 @@ import threading
 import time
 import yaml
 import pickle
+from kg_utils.merging import GraphMerger, MemoryGraphMerger, DiskGraphMerger
+from kg_utils.constants import *
 from bmt import Toolkit
 from collections import defaultdict
 from enum import Enum
 from io import StringIO
 from itertools import zip_longest
 from functools import reduce
-from kgx.utils.kgx_utils import prepare_data_dict as kgx_merge_dict
 from roger import ROGER_DATA_DIR
 from roger.config import get_default_config as get_config
 from roger.roger_util import get_logger
@@ -28,6 +29,8 @@ from redisgraph_bulk_loader.bulk_insert import bulk_insert
 from roger.roger_db import RedisGraph
 from string import Template
 from urllib.request import urlretrieve
+from itertools import chain
+from xxhash import xxh64_hexdigest
 
 log = get_logger ()
 config = get_config ()
@@ -435,6 +438,21 @@ class Util:
         f.close()
 
     @staticmethod
+    def jsonl_iter(file_name):
+        # iterating over jsonl files
+        with open(file_name) as stream:
+            for line in stream:
+                # yield on line at time
+                yield json.loads(line)
+
+    @staticmethod
+    def json_iter(json_file,entity_key):
+        with open(json_file) as stream:
+            data = json.loads(stream.read())
+            return data[entity_key]
+
+
+    @staticmethod
     def downloadfile(thread_num, inputq, doneq):
         url = ""
         t0 = 0
@@ -476,6 +494,15 @@ class KGXModel:
         if not config:
             config = get_config()
         self.config = config
+
+        # We need a temp director for the DiskGraphMerger
+        self.temp_directory = Util.merge_path(self.config.kgx.merge_db_temp_dir)
+        log.debug(f"Setting temp_directory to : {self.temp_directory}")
+        isExist = os.path.exists(self.temp_directory)
+        if not isExist:
+           os.makedirs(self.temp_directory)
+
+        self.merger = DiskGraphMerger(temp_directory=self.temp_directory, chunk_size=5_000_000)
         self.biolink_version = self.config.kgx.biolink_model_version
         self.merge_db_id = self.config.kgx.merge_db_id
         self.merge_db_name = f'db{self.merge_db_id}'
@@ -711,25 +738,45 @@ class KGXModel:
         category_error_nodes = set()
         merged_nodes_file = Util.merge_path("nodes.jsonl")
         log.info(f"Processing : {merged_nodes_file}")
+        counter = 0
         for node in Util.json_line_iter(merged_nodes_file):
+            # Debuging code
+            if counter % 10000 == 0:
+               log.info(f"Processing node : {node} counter : {counter}")
+            counter += 1
+
             if not node['category']:
                 category_error_nodes.add(node['id'])
                 node['category'] = [BiolinkModel.root_type]
-            node_type = self.biolink.get_leaf_class(node['category'])
+
+            # Get all leaf types of this node
+            node_types = list(self.biolink.find_biolink_leaves(node['category']))
+            # pick the fist one to work on
+            node_type = node_types[0]
+            # make sure it is defined in the final dict
             category_schemas[node_type] = category_schemas.get(node_type, {})
+
+            # compute full list of attributes and the value types of the attributes for that type.
             for k in node.keys():
                 current_type = type(node[k]).__name__
                 if k not in category_schemas[node_type]:
                     category_schemas[node_type][k] = current_type
                 else:
-                    previous_type = category_schemas[node_type][k]
+                    previous_type = category_schemas[node_type][k]                    
                     category_schemas[node_type][k] = TypeConversionUtil.compare_types(previous_type, current_type)
+
+            # copy over final result to every other leaf type
+            for tp in node_types:
+                category_schemas[tp] = category_schemas[node_type]
+            
+            
         if len(category_error_nodes):
             log.warn(f"some nodes didn't have category assigned. KGX file has errors."
                       f"Nodes {len(category_error_nodes)}."
                       f"Showing first 10: {list(category_error_nodes)[:10]}."
                       f"These will be treated as {BiolinkModel.root_type}.")
         """ Write node schemas. """
+        
         self.write_schema(category_schemas, SchemaType.CATEGORY)
 
     def create_edges_schema(self):
@@ -782,216 +829,62 @@ class KGXModel:
         dictionary = { k : v for k, v in schema.items () }
         Util.write_object (dictionary, file_name)
 
-    def read_items_from_redis(self, ids):
-        chunk_size = 10_000 # batch for pipeline
-        pipeline = self.redis_conn.pipeline()
-        response = {}
-        chunked_ids = [ids[start: start + chunk_size] for start in range(0, len(ids), chunk_size)]
-        for ids in chunked_ids:
-            for i in ids:
-                pipeline.get(i)
-            result = pipeline.execute()
-            for i, res in zip(ids, result):
-                if res:
-                    response.update({i: json.loads(res)})
-        return response
-
-    def write_items_to_redis(self, items):
-        chunk_size = 10_000  # batch for redis beyond this cap it might not be optimal, according to redis docs
-        pipeline = self.redis_conn.pipeline()
-        all_keys = list(items.keys())
-        chunked_keys = [all_keys[start: start + chunk_size] for start in range(0, len(all_keys), chunk_size)]
-        for keys in chunked_keys:
-            for key in keys:
-                pipeline.set(key, json.dumps(items[key]))
-            pipeline.execute()
-        log.debug(f"Wrote {len(all_keys)} to redis")
-
-    def batch_keys(self, batch_size, keys_pattern="*"):
-
-        keyspace = self.redis_conn.info('keyspace')
-        if self.merge_db_name not in keyspace:
-            log.info(f"found 0 keys.")
-            return []
-        else:
-            keyspace = keyspace[self.merge_db_name]['keys']
-        log.info(f"found {keyspace} total keys.")
-        args = [self.redis_conn.scan_iter(keys_pattern, batch_size)] * (keyspace + batch_size // batch_size)
-        current_keys = reduce(lambda x, y: x + [i for i in y if i], zip_longest(*args), [])
-        log.info(f"found {len(current_keys)} matches.")
-        return current_keys
-
-    def delete_keys(self, items):
-        # deletes keys
-        chunk_size = 10_000
-        pipeline = self.redis_conn.pipeline()
-        all_keys = items
-        log.info(f"grabbed {len(all_keys)}. Starting deletion in chunks of {chunk_size}")
-        chunked_keys = [all_keys[start: start + chunk_size] for start in range(0, len(all_keys), chunk_size)]
-        for keys in chunked_keys:
-            for key in keys:
-                pipeline.delete(key)
-            pipeline.execute()
-
-    def delete_all_keys(self):
-        all_keys = self.batch_keys(10_000)
-        self.delete_keys(all_keys)
-        log.info(f"deleted keys.")
-
-    def write_redis_back_to_jsonl(self, file_name, redis_key_pattern):
-        Util.mkdir(file_name)
-        with open(file_name, 'w', encoding='utf-8') as f:
-            start = time.time()
-            log.debug(f"Key pattern: {redis_key_pattern}")
-            # this needs to be a scan too
-            keys = self.batch_keys(batch_size=10_000, keys_pattern=redis_key_pattern)
-            log.info(f"Grabbing {redis_key_pattern} from redis took {time.time() - start}")
-            chunk_size = 500_000
-            chunked_keys = [keys[start: start + chunk_size] for start in range(0, len(keys), chunk_size) ]
-            for chunk in chunked_keys:
-                log.debug("Reading back from redis")
-                items = self.read_items_from_redis(chunk)
-                log.debug(f"found {len(items)} from redis")
-                self.delete_keys(chunk)
-                # transform them into lines
-                items = [json.dumps(items[x]).decode('utf-8') + '\n' for x in items]
-                f.writelines(items)
-                log.info(f"wrote : {len(items)} to file {file_name}")
-
-    def kgx_merge_dict(self, dict_1, dict_2):
-        # collect values that are same first
-        merged = {}
-        # if properties match up with value treat as one
-        # get dict_1 intersection dict_2 ,
-        merged = {x: dict_1[x] for x in dict_1 if dict_1.get(x) == dict_2.get(x)}
-        # get dict_1 disjoint dict 2
-        unique_dict_1_props = {x: dict_1[x] for x in dict_1 if x not in merged.keys()}
-        # get dict_2 disjoint dict 1
-        unique_dict_2_props = {x: dict_2[x] for x in dict_2 if x not in merged.keys()}
-        merged.update(kgx_merge_dict(unique_dict_1_props, unique_dict_2_props))
-        for keys in merged:
-            attribute = merged[keys]
-            # When mergeing array's for bulk loading
-            # we have to make sure that items in lists
-            # don't contain single-quotes.
-            # Single quotes in array items break parsing of arrays on bulk loading
-            # downstream.
-            if isinstance(attribute, list):
-                new_attribute = []
-                for value in attribute:
-                    if isinstance(value, str):
-                        value = value.replace("'", '`')
-                    new_attribute.append(value)
-                attribute = new_attribute
-            merged[keys] = attribute
-        return merged
-
-    def sort_node_types(self, node_dict):
-        categories = node_dict.get('category')
-        if not categories:
-            return node_dict
-        leaf_type = self.biolink.get_leaf_class(categories)
-        # brings leaf class in the top
-        categories = [leaf_type] + [x for x in categories if x != leaf_type]
-        node_dict['category'] = categories
-        return node_dict
-
-    def merge_node_and_edges (self, nodes, edges, current_metric , data_set_name ):
-        read_time = current_metric['read_kgx_file_time']
-        total_time = current_metric['total_processing_time']
-        # prefix keys for fetching back and writing to file.
-        nodes = {f"node-{node['id']}": self.sort_node_types(node) for node in nodes}
-        edges = {f"edge-{edge['subject']}-{edge['object']}-{edge['predicate']}": edge for edge in
-                 edges}
-        read_from_redis_time = time.time()
-        # read nodes and edges scoped to current file
-        nodes_in_redis = self.read_items_from_redis(list(nodes.keys()))
-        edges_in_redis = self.read_items_from_redis(list(edges.keys()))
-        read_from_redis_time = time.time() - read_from_redis_time
-        current_metric['read_redis_time'] = read_from_redis_time
-        merge_time = time.time()
-        log.info(f"Found matching {len(nodes_in_redis)} nodes {len(edges_in_redis)} edges from redis...")
-        for node_id in nodes_in_redis:
-            nodes[node_id] = self.kgx_merge_dict(nodes[node_id], nodes_in_redis[node_id])
-        for edge_id in edges_in_redis:
-            edges[edge_id] = self.kgx_merge_dict(edges[edge_id], edges_in_redis[edge_id])
-        # add predicate labels to edges;
-        for edge_id in edges:
-            edges[edge_id]['predicate_label'] = self.biolink.get_label(edges[edge_id]['predicate'])
-            edges[edge_id]['id'] = edges[edge_id].get('id', edge_id.replace('edge-', ''))
-        merge_time = time.time() - merge_time
-        current_metric['merge_time'] = merge_time
-        write_to_redis_time = time.time()
-        self.write_items_to_redis(nodes)
-        self.write_items_to_redis(edges)
-        write_to_redis_time = time.time() - write_to_redis_time
-        current_metric['write_to_redis_time'] = write_to_redis_time
-        log.debug(
-            "path {:>45} read_file:{:>5} read_nodes_from_redis:{:>7} merge_time:{:>3} write_nodes_to_redis: {"
-            ":>3}".format(
-                Util.trunc(data_set_name, 45), read_time, read_from_redis_time, merge_time, write_to_redis_time))
-        total_file_processing_time = time.time() - total_time
-        current_metric['total_processing_time'] = total_file_processing_time
-        current_metric['total_nodes_in_kgx_file'] = len(nodes)
-        current_metric['total_edges_in_kgx_file'] = len(edges)
-        current_metric['nodes_found_in_redis'] = len(nodes_in_redis)
-        current_metric['edges_found_in_redis'] = len(edges_in_redis)
-        log.info(f"processing {data_set_name} took {total_file_processing_time}")
-        return current_metric
-
     def merge (self):
-        """ Merge nodes. Would be good to have something less computationally intensive. """
+        """ This version uses the disk merging from the kg_utils module """
         data_set_version = self.config.get('kgx', {}).get('dataset_version')
         metrics = {}
         start = time.time()
         json_format_files = Util.kgx_objects("json")
-        jsonl_format_files = set([
-            x.replace(f'nodes_{data_set_version}.jsonl', '').replace(f'edges_{data_set_version}.jsonl', '') for x in Util.kgx_objects("jsonl")
-        ])
+        jsonl_format_files = Util.kgx_objects("jsonl")
 
-        log.info("Deleting any redis merge keys from previous run....")
-        self.delete_all_keys()
+        # Create lists of the nodes and edges files in both json and jsonl formats
+        json_node_files = {file for file in json_format_files if "node" in file}
+        jsonl_node_files = {file for file in jsonl_format_files if "node" in file}
+        json_edge_files = {file for file in json_format_files if "edge" in file}
+        jsonl_edge_files = {file for file in jsonl_format_files if "edge" in file}
 
-        for file in json_format_files:
-            current_metric = {}
-            total_time = read_time = time.time()
-            current_kgx_data = Util.read_object(file)
-            read_time = time.time() - read_time
-            current_metric['read_kgx_file_time'] = read_time
-            current_metric['total_processing_time'] = total_time
-            self.merge_node_and_edges(nodes=current_kgx_data['nodes'],
-                                      edges=current_kgx_data['edges'],
-                                      current_metric=current_metric,
-                                      data_set_name=file)
+        # Create all the needed iterators and sets thereof
+        json_node_iterators = [Util.json_iter(file_name, 'nodes') for file_name in json_node_files] 
+        jsonl_node_iterators = [Util.jsonl_iter(file_name) for file_name in jsonl_node_files] 
+        json_edge_iterators = [Util.json_iter(file_name, 'edges') for file_name in json_edge_files] 
+        jsonl_edge_iterators = [Util.jsonl_iter(file_name) for file_name in jsonl_edge_files] 
+        all_node_iterators = json_node_iterators + jsonl_node_iterators
+        all_edge_iterators = json_edge_iterators + jsonl_edge_iterators
 
-        for file in jsonl_format_files:
-            current_metric = {}
-            total_time = read_time = time.time()
-            edges = Util.json_line_iter(Util.kgx_path(file + f'edges_{data_set_version}.jsonl'))
-            nodes = Util.json_line_iter(Util.kgx_path(file + f'nodes_{data_set_version}.jsonl'))
-            read_time = time.time() - read_time
-            current_metric['read_kgx_file_time'] = read_time
-            current_metric['total_processing_time'] = total_time
-            self.merge_node_and_edges(nodes=nodes,
-                                      edges=edges,
-                                      current_metric=current_metric,
-                                      data_set_name=file)
+        # chain the iterators together
+        node_iterators = chain(*all_node_iterators)
+        edge_iterators = chain(*all_edge_iterators)
 
-        log.info(f"total time for dumping to redis : {time.time() - start}")
+        # now do the merge
+        self.merger.merge_nodes(node_iterators)
+        merged_nodes = self.merger.get_merged_nodes_jsonl()
 
-        # now we have all nodes and edges merged in redis we scan the whole redis back to disk
+        self.merger.merge_edges(edge_iterators)
+        merged_edges = self.merger.get_merged_edges_jsonl()
+
         write_merge_metric = {}
         t = time.time()
-        log.info("getting all nodes")
         start_nodes_jsonl = time.time()
         nodes_file_path = Util.merge_path("nodes.jsonl")
-        self.write_redis_back_to_jsonl(nodes_file_path, "node-*")
-        log.info(f"writing nodes to took : {time.time() - start_nodes_jsonl}")
+
+        # stream out nodes to nodes.jsonl file
+        with open(nodes_file_path, 'w') as stream:
+            for nodes in merged_nodes:
+                stream.write(nodes)
+
+        log.info(f"writing nodes took : {time.time() - start_nodes_jsonl}")
         write_merge_metric['nodes_writing_time'] = time.time() - start_nodes_jsonl
         start_edge_jsonl = time.time()
-        log.info("getting all edges")
-        edge_output_file_path = Util.merge_path("edges.jsonl")
-        self.write_redis_back_to_jsonl(edge_output_file_path, "edge-*")
+
+        # stream out edges to edges.jsonl file
+        edges_file_path = Util.merge_path("edges.jsonl")
+        with open(edges_file_path, 'w') as stream:
+            for edges in merged_edges:
+                edges = json.loads(edges)
+                # Add an id field for the edges as some of the downstream processing expects it.
+                edges['id'] = xxh64_hexdigest(edges['subject'] + edges['predicate'] + edges['object'] + edges.get("biolink:primary_knowledge_source", ""))
+                stream.write(json.dumps(edges).decode('utf-8') + '\n')
+     
         write_merge_metric['edges_writing_time'] = time.time() - start_edge_jsonl
         log.info(f"writing edges took: {time.time() - start_edge_jsonl}")
         write_merge_metric['total_time'] = time.time() - t
@@ -1008,7 +901,8 @@ class BiolinkModel:
 
     def __init__(self, bl_version='v3.1.2'):
         self.bl_url = f'https://raw.githubusercontent.com/biolink/biolink-model/{bl_version}/biolink-model.yaml'
-        self.toolkit = Toolkit(self.bl_url)
+        log.info(f"bl_url is  {self.bl_url}")
+        self.toolkit = Toolkit()
 
     def find_biolink_leaves(self, biolink_concepts):
         """
@@ -1017,24 +911,16 @@ class BiolinkModel:
         :return: leave concepts.
         """
         ancestry_set = set()
-        all_mixins_in_tree = set()
         all_concepts = set(biolink_concepts)
-        # Keep track of things like "MacromolecularMachine" in current datasets
-        # @TODO remove this and make nodes as errors
         unknown_elements = set()
+
         for x in all_concepts:
             current_element = self.toolkit.get_element(x)
-            mixins = set()
-            if current_element:
-                if 'mixins' in current_element and len(current_element['mixins']):
-                    for m in current_element['mixins']:
-                        mixins.add(self.toolkit.get_element(m).class_uri)
-            else:
+            if not current_element:
                 unknown_elements.add(x)
-            ancestors = set(self.toolkit.get_ancestors(x, reflexive=False, formatted=True))
+            ancestors = set(self.toolkit.get_ancestors(x, mixin=True, reflexive=False, formatted=True))
             ancestry_set = ancestry_set.union(ancestors)
-            all_mixins_in_tree = all_mixins_in_tree.union(mixins)
-        leaf_set = all_concepts - ancestry_set - all_mixins_in_tree - unknown_elements
+        leaf_set = all_concepts - ancestry_set - unknown_elements
         return leaf_set
 
     def get_leaf_class (self, names):
@@ -1213,7 +1099,11 @@ class BulkLoad:
         for key, objects in obj_map.items ():
             if len(objects) == 0:
                 continue
-            all_keys = schema[key]
+            try:
+                all_keys = schema[key]
+            except Exception as e:
+                log.error(f"{key} not in {schema.keys()} " )
+                raise Exception("error")
             """ Make all objects conform to the schema. """
             clustered_by_set_values, improper_redis_keys = self.group_items_by_attributes_set(objects,
                                                                                               processed_objects_id)
@@ -1420,6 +1310,7 @@ class Roger:
             self.log_stream = StringIO()
             self.string_handler = logging.StreamHandler (self.log_stream)
             log.addHandler (self.string_handler)
+        log.debug("config is " + config.kgx.biolink_model_version)
         self.biolink = BiolinkModel (config.kgx.biolink_model_version)
         self.kgx = KGXModel (self.biolink, config=config)
         self.bulk = BulkLoad (self.biolink, config=config)
@@ -1449,6 +1340,7 @@ class RogerUtil:
         log.debug("Getting KGX method called.")
         with Roger (to_string, config=config) as roger:
             dataset_version=config.get('kgx', {}).get('dataset_version')
+            log.debug("dataset_version is " + dataset_version)
             roger.kgx.get (dataset_version=dataset_version)
             output = roger.log_stream.getvalue () if to_string else None
         return output
