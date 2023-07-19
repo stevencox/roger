@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 import os
@@ -15,7 +16,8 @@ from dug.core.annotate import DugAnnotator, ConceptExpander
 from dug.core.crawler import Crawler
 from dug.core.factory import DugFactory
 from dug.core.parsers import Parser, DugElement
-from dug.core.search import Search
+from dug.core.async_search import Search
+from dug.core.index import Index
 
 from roger.config import RogerConfig
 from roger.core import Util
@@ -25,15 +27,15 @@ from utils.s3_utils import S3Utils
 log = get_logger()
 
 
+
 class Dug:
 
     def __init__(self, config: RogerConfig, to_string=True):
         self.config = config
         dug_conf = config.to_dug_conf()
         self.factory = DugFactory(dug_conf)
-
         self.cached_session = self.factory.build_http_session()
-
+        self.event_loop = asyncio.new_event_loop()
         if to_string:
             self.log_stream = StringIO()
             self.string_handler = logging.StreamHandler(self.log_stream)
@@ -58,11 +60,23 @@ class Dug:
             self.concepts_index,
             self.kg_index,
         ])
+        self.index_obj: Index = self.factory.build_indexer_obj([
+                self.variables_index,
+                self.concepts_index,
+                self.kg_index,
+
+        ])
 
     def __enter__(self):
+        self.event_loop = asyncio.new_event_loop()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        # close elastic search connection
+        self.event_loop.run_until_complete(self.search_obj.es.close())
+        # close async loop
+        if self.event_loop.is_running() and not self.event_loop.is_closed():
+            self.event_loop.close()
         if exc_type or exc_val or exc_tb:
             traceback.print_exc()
             log.error(f"{exc_val} {exc_val} {exc_tb}")
@@ -312,7 +326,7 @@ class Dug:
             count += 1
             # Only index DugElements as concepts will be indexed differently in next step
             if not isinstance(element, DugConcept):
-                self.search_obj.index_element(element, index=self.variables_index)
+                self.index_obj.index_element(element, index=self.variables_index)
             percent_complete = (count / total) * 100
             if percent_complete % 10 == 0:
                 log.info(f"{percent_complete} %")
@@ -349,12 +363,10 @@ class Dug:
                 )
 
     def _search_elements(self, curie, search_term):
-        response = self.search_obj.search_variables(
-            index=self.variables_index,
+        response = self.event_loop.run_until_complete(self.search_obj.search_vars_unscored(
             concept=curie,
-            query=search_term,
-            size=2000
-        )
+            query=search_term
+        ))
         ids_dict = []
         for element_type in response:
             all_elements_ids = [e['id'] for e in
@@ -417,10 +429,10 @@ class Dug:
         count = 0
         for concept_id, concept in concepts.items():
             count += 1
-            self.search_obj.index_concept(concept, index=self.concepts_index)
+            self.index_obj.index_concept(concept, index=self.concepts_index)
             # Index knowledge graph answers for each concept
             for kg_answer_id, kg_answer in concept.kg_answers.items():
-                self.search_obj.index_kg_answer(
+                self.index_obj.index_kg_answer(
                     concept_id=concept_id,
                     kg_answer=kg_answer,
                     index=self.kg_index,
@@ -496,7 +508,7 @@ class Dug:
             response = self.search_obj.es.indices.delete(index_id)
             log.info(f"Cleared Elastic : {response}")
         log.info("Re-initializing the indicies")
-        self.search_obj.init_indices()
+        self.index_obj.init_indices()
 
     def clear_variables_index(self):
         self.clear_index(self.variables_index)
@@ -777,13 +789,13 @@ def get_versioned_files(config: RogerConfig, data_format, output_file_path, data
     output_dir: Path = Util.dug_input_files_path(output_file_path)
     # clear dir
     Util.clear_dir(output_dir)
-    current_version = config.dug_inputs.dataset_version
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
     s3_utils = S3Utils(config.s3_config)
     for data_set in data_sets:
+        data_set_name, current_version = data_set.split(':')
         for item in meta_data["dug_inputs"]["versions"]:
-            if item["version"] == current_version and item["name"] == data_set and item["format"] == data_format:
+            if item["version"] == current_version and item["name"] == data_set_name and item["format"] == data_format:
                 if data_store == "s3":
                     for filename in item["files"]["s3"]:
                         log.info(f"Fetching {filename}")

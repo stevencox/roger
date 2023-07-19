@@ -1,7 +1,7 @@
 redisgraph:
   username: ""
-  password: ""
-  host: redis
+  password: "12345"
+  host: localhost
   graph: test
   port: 6379
 
@@ -23,11 +23,10 @@ kgx:
 
 dug_inputs:
   data_source: s3
-  dataset_version: v1.0
   data_sets:
-    - topmed
-    - bdc
-    - anvil
+    - topmed:v1.0
+    - bdc:v1.0
+    - anvil:v1.0
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:

@@ -42,34 +42,34 @@ with DAG(
     clear_annotation_items = create_python_task(dag, "clear_annotation_files", DugUtil.clear_annotation_cached)
 
     for i, data_set in enumerate(data_sets):
-        if data_set == "bdc":
+        if data_set.startswith("bdc"):
             prepare_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
             annotate_files = create_python_task(dag, "annotate_db_gap_files", DugUtil.annotate_db_gap_files)
-        elif data_set == "nida":
+        elif data_set.startswith("nida"):
             prepare_files = create_python_task(dag, "get_nida_files", get_nida_files)
             annotate_files = create_python_task(dag, "annotate_nida_files", DugUtil.annotate_nida_files)
-        elif data_set == "sparc":
+        elif data_set.startswith("sparc"):
             prepare_files = create_python_task(dag, "get_sparc_files", get_sparc_files)
             annotate_files = create_python_task(dag, "annotate_sparc_files", DugUtil.annotate_sparc_files)
-        elif data_set == "topmed":
+        elif data_set.startswith("topmed"):
             prepare_files = create_python_task(dag, "get_topmed_data", get_topmed_files)
             annotate_files = create_python_task(dag, "annotate_topmed_files", DugUtil.annotate_topmed_files)
-        elif data_set == "anvil":
+        elif data_set.startswith("anvil"):
             prepare_files = create_python_task(dag, "get_anvil_data", get_anvil_files)
             annotate_files = create_python_task(dag, "annotate_anvil_files", DugUtil.annotate_anvil_files)
-        elif data_set == "crdc":
+        elif data_set.startswith("crdc"):
             prepare_files = create_python_task(dag, "get_cancer_commons_files", get_cancer_data_commons_files)
             annotate_files = create_python_task(dag, "annotate_cancer_commons_files",
                                                 DugUtil.annotate_cancer_commons_files)
-        elif data_set == "kfdrc":
+        elif data_set.startswith("kfdrc"):
             prepare_files = create_python_task(dag, "get_kids_first_files", get_kids_first_files)
             annotate_files = create_python_task(dag, "annotate_kids_first_files",
                                                 DugUtil.annotate_kids_first_files)
-        elif data_set == "sprint":
+        elif data_set.startswith("sprint"):
             prepare_files = create_python_task(dag, "get_sprint_files", get_sprint_files)
             annotate_files = create_python_task(dag, "annotate_sprint_files",
                                                 DugUtil.annotate_sprint_files)
-        elif data_set == "bacpac":
+        elif data_set.startswith("bacpac"):
             prepare_files = create_python_task(dag, "get_bacpac_files", get_bacpac_files)
             annotate_files = create_python_task(dag, "annotate_bacpac_files",
                                                 DugUtil.annotate_bacpac_files)
