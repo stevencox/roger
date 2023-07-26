@@ -1,14 +1,13 @@
 import os
 
 from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.empty import EmptyOperator
 
 from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files,\
     get_nida_files, get_sparc_files, get_anvil_files,\
     get_cancer_data_commons_files, get_kids_first_files,\
     get_sprint_files, get_bacpac_files
-from roger.dag_util import default_args, create_python_task
+from roger.tasks import default_args, create_python_task
 
 DAG_ID = 'annotate_dug'
 
@@ -20,9 +19,7 @@ with DAG(
 ) as dag:
 
     """Build workflow tasks."""
-    intro = BashOperator(task_id='Intro',
-                         bash_command='echo running tranql translator && exit 0',
-                         dag=dag)
+    intro = EmptyOperator(task_id='Intro', dag=dag)
 
     # Unzip and get files, avoid this because
     # 1. it takes a bit of time making the dag itself, webserver hangs
@@ -31,9 +28,7 @@ with DAG(
 
     make_kg_tagged = create_python_task(dag, "make_tagged_kgx", DugUtil.make_kg_tagged)
 
-    dummy_stepover = DummyOperator(
-        task_id="continue",
-    )
+    dummy_stepover = EmptyOperator(task_id="continue")
 
     #intro >> run_printlog
     envspec = os.getenv("ROGER_DUG__INPUTS_DATA__SETS","topmed")
