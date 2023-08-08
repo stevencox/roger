@@ -1,6 +1,6 @@
 import os
 
-from roger.core import SchemaType
+from roger.core.enums import SchemaType
 import json
 
 class BiolinkMock:

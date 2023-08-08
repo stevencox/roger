@@ -2,7 +2,7 @@ import json
 import pytest
 from unittest.mock import patch
 
-from roger.core import KGXModel
+from roger.models.kgx import KGXModel
 from .conftest import BiolinkMock, UtilMock
 
 
