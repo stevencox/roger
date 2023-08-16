@@ -127,6 +127,25 @@ def write_object (obj, path, key=None):
         # Raise an exception if invalid.
         raise ValueError (f"Unrecognized extension: {path}")
 
+def mkdir(path, is_dir=False):
+    directory = os.path.dirname(path) if not is_dir else path
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+def remove(path):
+    if os.path.exists(path):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+
+def clear_dir(path):
+    remove(path)
+    mkdir(path, is_dir=True)
+
+######################
+# Path methods
+
 def kgx_path(name):
     """ Form a KGX object path.
     :path name: Name of the KGX object. """
@@ -212,22 +231,6 @@ def dug_input_files_path(name) -> pathlib.Path:
     else:
         log.info(f"Input file path: {path} already exists")
     return path
-
-def mkdir(path, is_dir=False):
-    directory = os.path.dirname(path) if not is_dir else path
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-def remove(path):
-    if os.path.exists(path):
-        if os.path.isdir(path):
-            shutil.rmtree(path)
-        else:
-            os.remove(path)
-
-def clear_dir(path):
-    remove(path)
-    mkdir(path, is_dir=True)
 
 def dug_topmed_path(name):
     """ Topmed source files"""
