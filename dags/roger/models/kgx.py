@@ -421,24 +421,20 @@ class KGXModel:
 
         # Create lists of the nodes and edges files in both json and jsonl
         # formats
-        json_node_files = {file for file in json_format_files
-                           if "node" in file}
         jsonl_node_files = {file for file in jsonl_format_files
                             if "node" in file}
-        json_edge_files = {file for file in json_format_files
-                           if "edge" in file}
         jsonl_edge_files = {file for file in jsonl_format_files
                             if "edge" in file}
 
         # Create all the needed iterators and sets thereof
-        json_node_iterators = [storage.json_iter(file_name, 'nodes') for
-                               file_name in json_node_files]
-        jsonl_node_iterators = [storage.jsonl_iter(file_name) for
-                                file_name in jsonl_node_files]
-        json_edge_iterators = [storage.json_iter(file_name, 'edges') for
-                               file_name in json_edge_files]
-        jsonl_edge_iterators = [storage.jsonl_iter(file_name) for
-                                file_name in jsonl_edge_files]
+        jsonl_node_iterators = [storage.jsonl_iter(file_name)
+                                for file_name in jsonl_node_files]
+        jsonl_edge_iterators = [storage.jsonl_iter(file_name)
+                                for file_name in jsonl_edge_files]
+        json_node_iterators = [Util.json_iter(file_name, 'nodes')
+                               for file_name in json_format_files]
+        json_edge_iterators = [storage.json_iter(file_name, 'edges')
+                               for file_name in json_edge_files]
         all_node_iterators = json_node_iterators + jsonl_node_iterators
         all_edge_iterators = json_edge_iterators + jsonl_edge_iterators
 
