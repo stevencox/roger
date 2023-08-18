@@ -1,11 +1,20 @@
-import os
-from pathlib import Path
+"Roger: an automated graph data curation pipeline."
 
-data_dir_env_value = os.getenv("ROGER_DATA_DIR")
+from roger.core.base import (
+    Roger,
+    roger_cli,
+    get_kgx,
+    create_schema,
+    create_edges_schema,
+    create_nodes_schema,
+    merge_nodes,
+    create_bulk_load,
+    create_bulk_nodes,
+    create_bulk_edges,
+    bulk_load,
+    validate,
+    check_tranql,
+)
 
-if data_dir_env_value is None:
-    ROGER_DATA_DIR = Path(__file__).parent.resolve() / 'data'
-else:
-    ROGER_DATA_DIR = Path(data_dir_env_value)
-
-
+if __name__ == "__main__":
+    roger_cli()
