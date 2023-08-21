@@ -244,7 +244,7 @@ class KGXModel:
         """ Read metadata for KGX files and downloads them locally.
         :param dataset_version: Data version to operate on.
         """
-        metadata = storage.read_relative_object ("../metadata.yaml")
+        metadata = storage.read_relative_object ("../../metadata.yaml")
         data_set_list = self.config.kgx.data_sets
         kgx_files_remote = []
         for item in metadata['kgx']['versions']:
