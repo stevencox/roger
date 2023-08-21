@@ -432,10 +432,10 @@ class KGXModel:
                                 for file_name in jsonl_node_files]
         jsonl_edge_iterators = [storage.jsonl_iter(file_name)
                                 for file_name in jsonl_edge_files]
-        json_node_iterators = [Util.json_iter(file_name, 'nodes')
+        json_node_iterators = [storage.json_iter(file_name, 'nodes')
                                for file_name in json_format_files]
         json_edge_iterators = [storage.json_iter(file_name, 'edges')
-                               for file_name in json_edge_files]
+                               for file_name in json_format_files]
         all_node_iterators = json_node_iterators + jsonl_node_iterators
         all_edge_iterators = json_edge_iterators + jsonl_edge_iterators
 
