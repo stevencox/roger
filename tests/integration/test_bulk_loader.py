@@ -2,12 +2,12 @@ import pytest
 from unittest.mock import patch
 
 from roger.core import BulkLoad
-from . import conftest
+from .conftest import BiolinkMock, UtilMock
 
 
 @pytest.fixture
 def bulk_loader():
-    biolink = conftest.BiolinkMock()
+    biolink = BiolinkMock()
     return BulkLoad(biolink=biolink, config={'separator': 30})
 
 
@@ -92,8 +92,8 @@ def test_write_bulk_nodes(bulk_loader: BulkLoad):
             }
         ]
     }
-    with patch('roger.core.bulkload.storage', conftest):
-        bulk_path = conftest.bulk_path()
+    with patch('roger.core.Util', UtilMock):
+        bulk_path = UtilMock.bulk_path()
         state = {}
         bulk_loader.write_bulk(bulk_path=bulk_path,
                                obj_map=node_objects,
