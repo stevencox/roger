@@ -12,6 +12,7 @@ import shutil
 import yaml
 import orjson as json
 import requests
+from urllib.request import urlretrieve
 from pathlib import Path
 
 from roger.logger import get_logger
