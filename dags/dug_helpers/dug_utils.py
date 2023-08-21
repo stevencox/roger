@@ -785,7 +785,7 @@ def get_versioned_files(config: RogerConfig, data_format, output_file_path, data
     """
        Fetches a dug inpu data files to input file directory
     """
-    meta_data = storage.read_relative_object("../metadata.yaml")
+    meta_data = storage.read_relative_object("../../metadata.yaml")
     output_dir: Path = storage.dug_input_files_path(output_file_path)
     # clear dir
     storage.clear_dir(output_dir)

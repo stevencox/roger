@@ -1,4 +1,4 @@
-from roger.core import RogerUtil
+import roger.core.base as RogerUtil
 from roger.config import config
 from roger.logger import get_logger
 from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files, get_sparc_files, get_anvil_files, get_nida_files

@@ -21,7 +21,8 @@ from roger.core import SchemaType
 log = get_logger()
 config = get_config()
 
-data_dir_env_value = os.getenv("ROGER_DATA_DIR")
+# not this variable is ovridable by ROGER_DATA__ROOT
+data_dir_env_value = config.data_root
 
 if data_dir_env_value is None:
     ROGER_DATA_DIR = Path(__file__).parent.resolve() / 'data'
