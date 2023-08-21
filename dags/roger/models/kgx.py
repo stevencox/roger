@@ -9,6 +9,7 @@ from collections import defaultdict
 from xxhash import xxh64_hexdigest
 import orjson as json
 import redis
+import ntpath
 from kg_utils.merging import GraphMerger, MemoryGraphMerger, DiskGraphMerger
 from kg_utils.constants import *
 
