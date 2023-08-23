@@ -317,7 +317,7 @@ class Dug:
 
     def index_elements(self, elements_file):
         log.info(f"Indexing {elements_file}...")
-        elements = path.read_object(elements_file)
+        elements = storage.read_object(elements_file)
         count = 0
         total = len(elements)
         # Index Annotated Elements
