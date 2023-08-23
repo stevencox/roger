@@ -20,7 +20,7 @@ from dug.core.async_search import Search
 from dug.core.index import Index
 
 from roger.config import RogerConfig
-from roger.core import Util
+from roger.core import storage
 from roger.logger import get_logger
 from utils.s3_utils import S3Utils
 
@@ -91,7 +91,7 @@ class Dug:
         """
         dug_plugin_manager = get_plugin_manager()
         parser: Parser = get_parser(dug_plugin_manager.hook, parser_name)
-        output_base_path = Util.dug_annotation_path('')
+        output_base_path = storage.dug_annotation_path('')
         log.info("Parsing files")
         for parse_file in parsable_files:
             log.debug("Creating Dug Crawler object")
@@ -112,7 +112,7 @@ class Dug:
 
             # create an empty elements file. This also creates output dir if it doesn't exist.
             log.debug(f"Creating empty file:  {elements_file_path}/element_file.json")
-            Util.write_object({}, os.path.join(elements_file_path, 'element_file.json'))
+            storage.write_object({}, os.path.join(elements_file_path, 'element_file.json'))
             log.debug(parse_file)
             log.debug(parser)
             elements = parser(parse_file)
@@ -132,10 +132,10 @@ class Dug:
             # Write pickles of objects to file
             log.info(f"Parsed and annotated: {parse_file}")
             elements_out_file = os.path.join(elements_file_path, elements_file_name)
-            Util.write_object(elements, elements_out_file)
+            storage.write_object(elements, elements_out_file)
             log.info(f"Pickled annotated elements to : {elements_file_path}/{elements_file_name}")
             concepts_out_file = os.path.join(elements_file_path, concepts_file_name)
-            Util.write_object(non_expanded_concepts, concepts_out_file)
+            storage.write_object(non_expanded_concepts, concepts_out_file)
             log.info(f"Pickled annotated concepts to : {elements_file_path}/{concepts_file_name}")
 
     def make_edge(self,
@@ -317,7 +317,7 @@ class Dug:
 
     def index_elements(self, elements_file):
         log.info(f"Indexing {elements_file}...")
-        elements = Util.read_object(elements_file)
+        elements = storage.read_object(elements_file)
         count = 0
         total = len(elements)
         # Index Annotated Elements
@@ -333,7 +333,7 @@ class Dug:
         log.info(f"Done indexing {elements_file}.")
 
     def validate_indexed_elements(self, elements_file):
-        elements = [x for x in Util.read_object(elements_file) if not isinstance(x, DugConcept)]
+        elements = [x for x in storage.read_object(elements_file) if not isinstance(x, DugConcept)]
         # Pick ~ 10 %
         sample_size = int(len(elements) * 0.1)
         test_elements = elements[:sample_size]  # random.choices(elements, k=sample_size)
@@ -381,11 +381,11 @@ class Dug:
         :param data_set_name:
         :return:
         """
-        crawl_dir = Util.dug_crawl_path('crawl_output')
+        crawl_dir = storage.dug_crawl_path('crawl_output')
         output_file_name = os.path.join(data_set_name, 'expanded_concepts.pickle')
         extracted_dug_elements_file_name = os.path.join(data_set_name, 'extracted_graph_elements.pickle')
-        output_file = Util.dug_expanded_concepts_path(output_file_name)
-        extracted_output_file = Util.dug_expanded_concepts_path(extracted_dug_elements_file_name)
+        output_file = storage.dug_expanded_concepts_path(output_file_name)
+        extracted_output_file = storage.dug_expanded_concepts_path(extracted_dug_elements_file_name)
         Path(crawl_dir).mkdir(parents=True, exist_ok=True)
         extracted_dug_elements = []
         log.debug("Creating Dug Crawler object")
@@ -420,8 +420,8 @@ class Dug:
             percent_complete = int((counter / total) * 100)
             if percent_complete % 10 == 0:
                 log.info(f"{percent_complete}%")
-        Util.write_object(obj=concepts, path=output_file)
-        Util.write_object(obj=extracted_dug_elements, path=extracted_output_file)
+        storage.write_object(obj=concepts, path=output_file)
+        storage.write_object(obj=extracted_dug_elements, path=extracted_output_file)
 
     def index_concepts(self, concepts):
         log.info("Indexing Concepts")
@@ -525,8 +525,8 @@ class DugUtil():
     @staticmethod
     def clear_annotation_cached(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
-            annotation_path = Util.dug_annotation_path("")
-            Util.clear_dir(annotation_path)
+            annotation_path = storage.dug_annotation_path("")
+            storage.clear_dir(annotation_path)
             # Clear http session cache
             if config.annotation.clear_http_cache:
                 dug.cached_session.cache.clear()
@@ -535,7 +535,7 @@ class DugUtil():
     def annotate_db_gap_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_dd_xml_objects()
+                files = storage.dug_dd_xml_objects()
             parser_name = "DbGaP"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
@@ -546,7 +546,7 @@ class DugUtil():
     def annotate_anvil_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_anvil_objects()
+                files = storage.dug_anvil_objects()
             parser_name = "Anvil"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
@@ -557,7 +557,7 @@ class DugUtil():
     def annotate_cancer_commons_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_crdc_objects()
+                files = storage.dug_crdc_objects()
             parser_name = "crdc"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
@@ -568,7 +568,7 @@ class DugUtil():
     def annotate_kids_first_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_kfdrc_objects()
+                files = storage.dug_kfdrc_objects()
             parser_name = "kfdrc"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
@@ -579,7 +579,7 @@ class DugUtil():
     def annotate_nida_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_nida_objects()
+                files = storage.dug_nida_objects()
             parser_name = "NIDA"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
@@ -590,7 +590,7 @@ class DugUtil():
     def annotate_sparc_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_sparc_objects()
+                files = storage.dug_sparc_objects()
             parser_name = "SciCrunch"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
@@ -601,7 +601,7 @@ class DugUtil():
     def annotate_sprint_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_sprint_objects()
+                files = storage.dug_sprint_objects()
             parser_name = "SPRINT"
             dug.annotate_files(parser_name=parser_name,
                                parsable_files=files)
@@ -612,7 +612,7 @@ class DugUtil():
     def annotate_topmed_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_topmed_objects()
+                files = storage.dug_topmed_objects()
             parser_name = "TOPMedTag"
             log.info(files)
             dug.annotate_files(parser_name=parser_name,
@@ -624,7 +624,7 @@ class DugUtil():
     def annotate_bacpac_files(config=None, to_string=False, files=None):
         with Dug(config, to_string=to_string) as dug:
             if files is None:
-                files = Util.dug_bacpac_objects()
+                files = storage.dug_bacpac_objects()
             parser_name = "BACPAC"
             log.info(files)
             dug.annotate_files(parser_name=parser_name,
@@ -635,19 +635,19 @@ class DugUtil():
     @staticmethod
     def make_kg_tagged(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
-            output_base_path = Util.dug_kgx_path("")
-            Util.clear_dir(output_base_path)
+            output_base_path = storage.dug_kgx_path("")
+            storage.clear_dir(output_base_path)
             log.info("Starting building KGX files")
-            elements_files = Util.dug_elements_objects()
+            elements_files = storage.dug_elements_objects()
             for file in elements_files:
-                elements = Util.read_object(file)
+                elements = storage.read_object(file)
                 if "topmed_" in file:
                     kg = dug.make_tagged_kg(elements)
                 else:
                     kg = dug.convert_to_kgx_json(elements)
                 dug_base_file_name = file.split(os.path.sep)[-2]
                 output_file_path = os.path.join(output_base_path, dug_base_file_name + '_kgx.json')
-                Util.write_object(kg, output_file_path)
+                storage.write_object(kg, output_file_path)
                 log.info(f"Wrote {len(kg['nodes'])} nodes and {len(kg['edges'])} edges, to {output_file_path}.")
             output_log = dug.log_stream.getvalue() if to_string else ''
         return output_log
@@ -656,7 +656,7 @@ class DugUtil():
     def index_variables(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
             dug.clear_variables_index()
-            elements_object_files = Util.dug_elements_objects()
+            elements_object_files = storage.dug_elements_objects()
             for file in elements_object_files:
                 dug.index_elements(file)
             output_log = dug.log_stream.getvalue() if to_string else ''
@@ -665,7 +665,7 @@ class DugUtil():
     @staticmethod
     def index_extracted_elements(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
-            elements_object_files = Util.dug_extracted_elements_objects()
+            elements_object_files = storage.dug_extracted_elements_objects()
             for file in elements_object_files:
                 dug.index_elements(file)
             output_log = dug.log_stream.getvalue() if to_string else ''
@@ -678,9 +678,9 @@ class DugUtil():
             # clear out concepts and kg indicies from previous runs
             dug.clear_concepts_index()
             dug.clear_kg_index()
-            expanded_concepts_files = Util.dug_expanded_concept_objects()
+            expanded_concepts_files = storage.dug_expanded_concept_objects()
             for file in expanded_concepts_files:
-                concepts = Util.read_object(file)
+                concepts = storage.read_object(file)
                 dug.index_concepts(concepts=concepts)
             output_log = dug.log_stream.getvalue() if to_string else ''
         return output_log
@@ -688,7 +688,7 @@ class DugUtil():
     @staticmethod
     def validate_indexed_variables(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
-            elements_object_files = Util.dug_elements_objects()
+            elements_object_files = storage.dug_elements_objects()
             for elements_object_file in elements_object_files:
                 log.info(f"Validating {elements_object_file}")
                 dug.validate_indexed_elements(elements_object_file)
@@ -698,16 +698,16 @@ class DugUtil():
     @staticmethod
     def crawl_tranql(config=None, to_string=False):
         with Dug(config, to_string=to_string) as dug:
-            concepts_files = Util.dug_concepts_objects()
-            crawl_dir = Util.dug_crawl_path('crawl_output')
+            concepts_files = storage.dug_concepts_objects()
+            crawl_dir = storage.dug_crawl_path('crawl_output')
             log.info(f'Clearing crawl output dir {crawl_dir}')
-            Util.clear_dir(crawl_dir)
-            expanded_concepts_dir = Util.dug_expanded_concepts_path("")
+            storage.clear_dir(crawl_dir)
+            expanded_concepts_dir = storage.dug_expanded_concepts_path("")
             log.info(f'Clearing expanded concepts dir: {expanded_concepts_dir}')
-            Util.clear_dir(expanded_concepts_dir)
+            storage.clear_dir(expanded_concepts_dir)
             log.info(f'Crawling Dug Concepts, found {len(concepts_files)} file(s).')
             for file in concepts_files:
-                data_set = Util.read_object(file)
+                data_set = storage.read_object(file)
                 original_variables_dataset_name = os.path.split(os.path.dirname(file))[-1]
                 dug.crawl_concepts(concepts=data_set,
                                    data_set_name=original_variables_dataset_name)
@@ -719,10 +719,10 @@ class DugUtil():
         with Dug(config, to_string=to_string) as dug:
             get_data_set_name = lambda file: os.path.split(os.path.dirname(file))[-1]
             expanded_concepts_files_dict = {
-                get_data_set_name(file): file for file in Util.dug_expanded_concept_objects()
+                get_data_set_name(file): file for file in storage.dug_expanded_concept_objects()
             }
             annotated_elements_files_dict = {
-                get_data_set_name(file): file for file in Util.dug_elements_objects()
+                get_data_set_name(file): file for file in storage.dug_elements_objects()
             }
             try:
                 assert len(expanded_concepts_files_dict) == len(annotated_elements_files_dict)
@@ -739,8 +739,8 @@ class DugUtil():
                 log.debug(f"Reading concepts and elements for dataset {data_set_name}")
                 elements_file_path = annotated_elements_files_dict[data_set_name]
                 concepts_file_path = expanded_concepts_files_dict[data_set_name]
-                dug_elements = Util.read_object(elements_file_path)
-                dug_concepts = Util.read_object(concepts_file_path)
+                dug_elements = storage.read_object(elements_file_path)
+                dug_concepts = storage.read_object(concepts_file_path)
                 log.debug(f"Read {len(dug_elements)} elements, and {len(dug_concepts)} Concepts")
                 log.info(f"Validating {data_set_name}")
                 dug.validate_indexed_concepts(elements=dug_elements, concepts=dug_concepts)
@@ -785,10 +785,10 @@ def get_versioned_files(config: RogerConfig, data_format, output_file_path, data
     """
        Fetches a dug inpu data files to input file directory
     """
-    meta_data = Util.read_relative_object("../metadata.yaml")
-    output_dir: Path = Util.dug_input_files_path(output_file_path)
+    meta_data = storage.read_relative_object("../../metadata.yaml")
+    output_dir: Path = storage.dug_input_files_path(output_file_path)
     # clear dir
-    Util.clear_dir(output_dir)
+    storage.clear_dir(output_dir)
     data_sets = config.dug_inputs.data_sets
     pulled_files = []
     s3_utils = S3Utils(config.s3_config)

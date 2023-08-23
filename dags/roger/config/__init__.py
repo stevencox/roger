@@ -14,7 +14,6 @@ from .s3_config import S3Config
 
 CONFIG_FILENAME = Path(__file__).parent.resolve() / "config.yaml"
 
-
 @dataclass
 class RedisConfig(DictLike):
     username: str = ""
