@@ -45,8 +45,8 @@ bulk_loader:
 annotation:
   clear_http_cache: false
   annotator: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
-  normalizer: "https://nodenormalization-sri.renci.org/get_normalized_nodes?conflate=false&curie="
-  synonym_service: "https://onto.renci.org/synonyms/"
+  normalizer: "https://nodenormalization-dev.apps.renci.org/get_normalized_nodes?conflate=false&description=true&curie="
+  synonym_service: "https://name-resolution-sri.renci.org/reverse_lookup"
   ontology_metadata: "https://api.monarchinitiative.org/api/bioentity/"
   preprocessor:
     debreviator:

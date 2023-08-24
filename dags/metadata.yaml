@@ -115,6 +115,12 @@ dug_inputs:
         stars:
           - "bdc_dbgap_data_dicts.tar.gz"
       format: dbGaP
+    - name: bdc
+      version: v3.0
+      files:
+        s3:
+          - "bdc/v3.0/bdc_dbgap_data_dicts.tar.gz"
+      format: dbGaP
     - name: nida
       version: v1.0
       files:

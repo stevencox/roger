@@ -7,7 +7,7 @@ redisgraph==2.4.1
 redisgraph-bulk-loader==0.9.5
 pytest
 PyYAML
-git+https://github.com/helxplatform/dug@2.10.0
+git+https://github.com/helxplatform/dug@2.11.0
 elasticsearch==7.11.0
 orjson
 kg-utils==0.0.5

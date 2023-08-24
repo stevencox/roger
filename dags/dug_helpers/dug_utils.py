@@ -217,7 +217,7 @@ class Dug:
                 "id": element.id,
                 "name": element.name,
                 "category": ["biolink:StudyVariable"],
-                "description": element.description.replace("'", '`') # bulk loader parsing issue
+                "description": element.description.replace("'", '`').replace('\n', ' ') # bulk loader parsing issue
             }
             if element.id not in written_nodes:
                 nodes.append(variable_node)
@@ -402,9 +402,13 @@ class Dug:
         total = len(concepts)
         for concept_id, concept in concepts.items():
             counter += 1
-            crawler.expand_concept(concept)
-            concept.set_search_terms()
-            concept.set_optional_terms()
+            try:
+                crawler.expand_concept(concept)
+                concept.set_search_terms()
+                concept.set_optional_terms()
+            except Exception as e:
+                log.error(concept)
+                raise e
             for query in self.node_to_element_queries:
                 log.info(query)
                 casting_config = query['casting_config']
@@ -505,7 +509,7 @@ class Dug:
         exists = self.search_obj.es.indices.exists(index_id)
         if exists:
             log.info(f"Deleting index {index_id}")
-            response = self.search_obj.es.indices.delete(index_id)
+            response = self.event_loop.run_until_complete(self.search_obj.es.indices.delete(index_id))
             log.info(f"Cleared Elastic : {response}")
         log.info("Re-initializing the indicies")
         self.index_obj.init_indices()
