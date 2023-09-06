@@ -55,6 +55,9 @@ annotation:
   ontology_greenlist: ["PATO", "CHEBI", "MONDO", "UBERON", "HP", "MESH", "UMLS"]
 
 indexing:
+  # colon seperated mappings list by comma
+  # eg : dbgap:Non-HEAL Studies,bacpac:HEAL Research Programs
+  element_mapping: ""
   variables_index: "variables_index"
   concepts_index: "concepts_index"
   kg_index: "kg_index"

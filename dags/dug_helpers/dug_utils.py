@@ -21,6 +21,7 @@ from dug.core.index import Index
 
 from roger.config import RogerConfig
 from roger.core import storage
+from roger.models.biolink import BiolinkModel
 from roger.logger import get_logger
 from utils.s3_utils import S3Utils
 
@@ -32,7 +33,9 @@ class Dug:
 
     def __init__(self, config: RogerConfig, to_string=True):
         self.config = config
+        self.bl_toolkit = BiolinkModel()
         dug_conf = config.to_dug_conf()
+        self.element_mapping = config.indexing.element_mapping
         self.factory = DugFactory(dug_conf)
         self.cached_session = self.factory.build_http_session()
         self.event_loop = asyncio.new_event_loop()
@@ -242,11 +245,14 @@ class Dug:
                 else:
                     continue
                 if identifier not in written_nodes:
+                    if isinstance(category, str):
+                        bl_element = self.bl_toolkit.toolkit.get_element(category)
+                        category = [bl_element.class_uri or bl_element.slot_uri]
                     nodes.append({
                         "id": identifier,
                         "category": category,
                         "name": metadata.name
-                    })
+                    })                    
                     written_nodes.add(identifier)
                 # related to edge
                 edges.append(self.make_edge(
@@ -293,12 +299,16 @@ class Dug:
             })
             """ Link ontology identifiers we've found for this tag via nlp. """
             for identifier, metadata in tag.identifiers.items():
-                node_types = list(metadata.types) if isinstance(metadata.types, str) else metadata.types
+                if isinstance(metadata.types, str):
+                    bl_element = self.bl_toolkit.toolkit.get_element(metadata.types)
+                    category = [bl_element.class_uri or bl_element.slot_uri]
+                else:
+                    category = metadata.types 
                 synonyms = metadata.synonyms if metadata.synonyms else []
                 nodes.append({
                     "id": identifier,
                     "name": metadata.label,
-                    "category": node_types,
+                    "category": category,
                     "synonyms": synonyms
                 })
                 nodes_written.add(identifier)
@@ -326,6 +336,9 @@ class Dug:
             count += 1
             # Only index DugElements as concepts will be indexed differently in next step
             if not isinstance(element, DugConcept):
+                # override data-type with mapping values 
+                if element.type.lower() in self.element_mapping:
+                    element.type = self.element_mapping[element.type.lower()]
                 self.index_obj.index_element(element, index=self.variables_index)
             percent_complete = (count / total) * 100
             if percent_complete % 10 == 0:
@@ -635,6 +648,34 @@ class DugUtil():
                                parsable_files=files)
             output_log = dug.log_stream.getvalue() if to_string else ''
         return output_log
+ 
+    
+    @staticmethod
+    def annotate_heal_study_files(config=None, to_string=False, files=None):
+        with Dug(config, to_string=to_string) as dug:
+            if files is None:
+                files = storage.dug_heal_study_objects()
+
+            parser_name = "heal-studies"
+            log.info(files)
+            dug.annotate_files(parser_name=parser_name,
+                               parsable_files=files)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
+
+    
+    @staticmethod
+    def annotate_heal_research_program_files(config=None, to_string=False, files=None):
+        with Dug(config, to_string=to_string) as dug:
+            if files is None:
+                files = storage.dug_heal_research_program_objects()
+
+            parser_name = "heal-research"
+            log.info(files)
+            dug.annotate_files(parser_name=parser_name,
+                               parsable_files=files)
+            output_log = dug.log_stream.getvalue() if to_string else ''
+        return output_log
 
     @staticmethod
     def make_kg_tagged(config=None, to_string=False):
@@ -794,6 +835,7 @@ def get_versioned_files(config: RogerConfig, data_format, output_file_path, data
     # clear dir
     storage.clear_dir(output_dir)
     data_sets = config.dug_inputs.data_sets
+    log.info(f"dataset: {data_sets}")
     pulled_files = []
     s3_utils = S3Utils(config.s3_config)
     for data_set in data_sets:
@@ -864,5 +906,11 @@ def get_bacpac_files(config: RogerConfig, to_string=False) -> List[str]:
 
 def get_topmed_files(config: RogerConfig, to_string=False) -> List[str]:
     return get_versioned_files(config, "topmed", "topmed", data_store=config.dug_inputs.data_source, unzip=False)
+
+def get_heal_study_files(config: RogerConfig, to_string=False) -> List[str]:
+    return get_versioned_files(config, "heal-studies", "heal-study-imports", data_store=config.dug_inputs.data_source, unzip=True)
+
+def get_heal_research_program_files(config: RogerConfig, to_string=False) -> List[str]:
+    return get_versioned_files(config, "heal-research", "heal-research-programs", data_store=config.dug_inputs.data_source, unzip=True)
 
 

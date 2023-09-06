@@ -119,8 +119,18 @@ class IndexingConfig(DictLike):
     tranql_endpoint: str = "http://tranql:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
     # by default skips node to element queries
     node_to_element_queries: dict = field(default_factory=lambda: {})
-
+    element_mapping: str = ""
     def __post_init__(self):
+        # convert element mapping to dict
+        if self.element_mapping and len(self.element_mapping.split(',')):
+            final_element_mapping = {}
+            for mapping in self.element_mapping.split(','):
+                if not mapping:
+                    continue
+                original_name = mapping.split(':')[0].lower().strip()
+                final_name = mapping.split(':')[1].strip()
+                final_element_mapping[original_name] = final_name
+            self.element_mapping = final_element_mapping    
         node_to_el_enabled = True if str(self.node_to_element_queries.get("enabled")).lower() == "true" else False
         final_node_to_element_queries = {}
         if node_to_el_enabled:

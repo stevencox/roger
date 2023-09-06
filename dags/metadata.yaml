@@ -179,3 +179,16 @@ dug_inputs:
         s3:
           - "heal-datasets/bacpac/bacpac_baseline_do_measures.tar.gz"
       format: bacpac
+    - name: heal-studies
+      version: v1.0
+      files:
+        s3:
+          - heal-datasets/ingest-8-23/heal_studies.tar.gz      
+          - heal-datasets/ingest-8-23/heal_mds_import.tar.gz
+      format: heal-studies
+    - name: heal-research-programs
+      version: v1.0
+      files:
+        s3:
+          - heal-datasets/ingest-8-23/heal_research_programs.tar.gz
+      format: heal-research

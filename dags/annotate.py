@@ -3,10 +3,20 @@ import os
 from airflow.models import DAG
 from airflow.operators.empty import EmptyOperator
 
-from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files,\
-    get_nida_files, get_sparc_files, get_anvil_files,\
-    get_cancer_data_commons_files, get_kids_first_files,\
-    get_sprint_files, get_bacpac_files
+from dug_helpers.dug_utils import (
+    DugUtil, 
+    get_topmed_files,
+    get_dbgap_files,
+    get_nida_files,
+    get_sparc_files,
+    get_anvil_files,
+    get_cancer_data_commons_files,
+    get_kids_first_files,
+    get_sprint_files,
+    get_bacpac_files,
+    get_heal_study_files,
+    get_heal_research_program_files
+    )
 from roger.tasks import default_args, create_python_task
 
 DAG_ID = 'annotate_dug'
@@ -37,6 +47,7 @@ with DAG(
     clear_annotation_items = create_python_task(dag, "clear_annotation_files", DugUtil.clear_annotation_cached)
 
     for i, data_set in enumerate(data_sets):
+        annotate_files = None
         if data_set.startswith("bdc"):
             prepare_files = create_python_task(dag, "get_dbgap_data", get_dbgap_files)
             annotate_files = create_python_task(dag, "annotate_db_gap_files", DugUtil.annotate_db_gap_files)
@@ -67,10 +78,26 @@ with DAG(
         elif data_set.startswith("bacpac"):
             prepare_files = create_python_task(dag, "get_bacpac_files", get_bacpac_files)
             annotate_files = create_python_task(dag, "annotate_bacpac_files",
-                                                DugUtil.annotate_bacpac_files)
+                                                DugUtil.annotate_bacpac_files)        
+        
+        elif data_set.startswith("heal-studies"):
+            prepare_files = create_python_task(dag, "get_heal_study_files", get_heal_study_files)
+            annotate_files = create_python_task(dag, "annotate_heal_study_files",
+                                                DugUtil.annotate_heal_study_files)
+        # elif data_set.startswith("heal-mds-imports"):
+        #     prepare_files = create_python_task(dag, "get_heal_mds_imports", get_heal_study_files)            
+
+        elif data_set.startswith("heal-research-programs"):
+            prepare_files = create_python_task(dag, "get_heal_research_program_files", get_heal_research_program_files)
+            annotate_files = create_python_task(dag, "annotate_heal_research_program_files",
+                                                DugUtil.annotate_heal_research_program_files)
+
+        
         intro >> prepare_files
         prepare_files >> clear_annotation_items
-        clear_annotation_items >> annotate_files
-        annotate_files >> dummy_stepover
+
+        if annotate_files:
+            clear_annotation_items >> annotate_files
+            annotate_files >> dummy_stepover
 
     dummy_stepover >> make_kg_tagged

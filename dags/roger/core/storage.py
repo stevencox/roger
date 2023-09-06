@@ -261,6 +261,18 @@ def dug_bacpac_path():
     """Anvil source files"""
     return dug_input_files_path('bacpac')
 
+def dug_heal_mds_path():
+    """HEAL MDS source files"""
+    return dug_input_files_path('heal-mds-imports')
+
+def dug_heal_research_program_path():
+    """HEAL research programs source files"""
+    return dug_input_files_path('heal-research-programs')
+
+def dug_heal_study_path():
+    """HEAL study source files"""
+    return dug_input_files_path('heal-study-imports')
+
 def dug_crdc_path():
     """Anvil source files"""
     return dug_input_files_path('crdc')
@@ -306,6 +318,17 @@ def dug_crdc_objects():
             and file_name.endswith('.xml')),
         file_path)
     return sorted([str(f) for f in files])
+
+def dug_heal_study_objects():
+    file_path = dug_heal_study_path()
+    files = get_files_recursive(lambda file_name : file_name.endswith('.xml'), file_path)
+    return sorted([str(f) for f in files])
+
+def dug_heal_research_program_objects():
+    file_path = dug_heal_research_program_path()
+    files = get_files_recursive(lambda file_name : file_name.endswith('.xml'), file_path)
+    return sorted([str(f) for f in files])
+
 
 def dug_kfdrc_objects():
     file_path = dug_kfdrc_path()
