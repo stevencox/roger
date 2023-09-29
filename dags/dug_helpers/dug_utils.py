@@ -742,6 +742,7 @@ class DugUtil():
 
     @staticmethod
     def crawl_tranql(config=None, to_string=False):
+        log.info(config.dict)
         with Dug(config, to_string=to_string) as dug:
             concepts_files = storage.dug_concepts_objects()
             crawl_dir = storage.dug_crawl_path('crawl_output')

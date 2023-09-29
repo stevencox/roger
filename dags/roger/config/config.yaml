@@ -78,11 +78,14 @@ indexing:
     cde:
       node_type: biolink:Publication
       curie_prefix: "HEALCDE"
+      list_field_choose_first: 
+        - "files"
       attribute_mapping:
         name: "name"
         desc: "summary"
         collection_name: "cde_category"
         collection_id: "cde_category"
+        collection_action: "files"
 
 elasticsearch:
   host: elasticsearch
@@ -146,3 +149,9 @@ s3:
   bucket: ""
   access_key: ""
   secret_key: ""
+
+lakefs_config:
+  enabled: false
+  access_key_id: ""
+  secret_access_key: ""
+  host: ""
