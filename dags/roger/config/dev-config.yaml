@@ -13,7 +13,7 @@ data_root: "/Users/schreepc/Projects/helxplatform/roger/roger/test/data"
 dug_data_root: dug_helpers/dug_data/topmed_data
 base_data_uri: https://stars.renci.org/var/kgx_data/trapi-1.0/
 kgx:
-  biolink_model_version: 1.5.0
+  biolink_model_version: test
 
 #https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
 bulk_loader:

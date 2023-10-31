@@ -10,7 +10,7 @@ export PYTHONPATH=$ROGER_HOME:$ROGER_HOME/../kgx
 export DB_NAME=test
 
 roger () {
-    python $ROGER_HOME/roger/core.py $*
+    python $ROGER_HOME/dags/roger/core.py $*
 }
 
 kgx () {

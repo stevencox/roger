@@ -341,20 +341,26 @@ class BulkLoad:
         args = []
         if len(nodes) > 0:
             bulk_path_root = storage.bulk_path('nodes') + os.path.sep
-            nodes_with_type = [
-                f"{ x.replace(bulk_path_root, '').split('.')[0].replace('~', ':')} {x}"
-                for x in nodes]
+            nodes_with_type = []
+            for x in nodes:
+                """ 
+                    These lines prep nodes bulk load by:
+                    1) appending to labels 'biolink.'
+                    2) combine labels to create a multilabel redis node i.e. "biolink.OrganismalEntity:biolink.SubjectOfInvestigation" 
+                """
+                file_name_type_part = x.replace(bulk_path_root, '').split('.')[0].split('~')[1]
+                all_labels = "biolink." + file_name_type_part + ":" + ":".join([f'biolink.{v.lstrip("biolink:")}' for v in self.biolink.toolkit.get_ancestors("biolink:" + file_name_type_part, reflexive=False, formatted=True )] )
+                nodes_with_type.append(f"{all_labels} {x}")
             args.extend(("-N " + " -N ".join(nodes_with_type)).split())
         if len(edges) > 0:
             bulk_path_root = storage.bulk_path('edges') + os.path.sep
-            edges_with_type = [
-                f"{x.replace(bulk_path_root, '').strip(os.path.sep).split('.')[0].replace('~', ':')} {x}"
-                for x in edges]
+            edges_with_type = [f"biolink.{x.replace(bulk_path_root, '').strip(os.path.sep).split('.')[0].split('~')[1]} {x}"
+                               for x in edges]
+            # Edge label now no longer has 'biolink:'
             args.extend(("-R " + " -R ".join(edges_with_type)).split())
         args.extend([f"--separator={self.separator}"])
-        args.extend([f"--host={redisgraph['host']}"])
-        args.extend([f"--port={redisgraph['port']}"])
-        args.extend([f"--password={redisgraph['password']}"])
+        log.debug(f"--redis-url=redis://:{redisgraph['password']}@{redisgraph['host']}:{redisgraph['port']}")
+        args.extend([f"--redis-url=redis://:{redisgraph['password']}@{redisgraph['host']}:{redisgraph['port']}"])
         args.extend(['--enforce-schema'])
         args.extend([f"{redisgraph['graph']}"])
         """ standalone_mode=False tells click not to sys.exit() """

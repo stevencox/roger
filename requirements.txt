@@ -1,14 +1,12 @@
-apache-airflow==2.5.0
 boto3==1.18.23
 botocore==1.21.23
 #black==21.10b0
+elasticsearch==8.5.2
 flatten-dict
-redisgraph==2.4.1
-redisgraph-bulk-loader==0.9.5
+redisgraph-bulk-loader==0.12.3
 pytest
 PyYAML
-git+https://github.com/helxplatform/dug@2.11.2
-elasticsearch==7.11.0
+git+https://github.com/helxplatform/dug@2.12.0
 orjson
 kg-utils==0.0.6
 bmt==1.1.0

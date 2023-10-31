@@ -1,0 +1,124 @@
+# This is a file that lists the data to be used for testing purposes
+# It contains a reduced set of the metadata.yaml file
+kgx:
+  versions:
+  - files:
+    - biolink-v1.0.json
+    - ctd-v1.0.json
+    - gtopdb-v1.0.json
+    - hetio-v1.0.json
+    - hgnc-v1.0.json
+    - hmdb-v1.0.json
+    - kegg-v1.0.json
+    - mychem-v1.0.json
+    - ontological-hierarchy-v1.0.json
+    - panther-v1.0.json
+    - foodb-v1.0.json
+    - pharos-v1.0.json
+    - intact-v1.0.json
+    - human-goa-v1.0.json
+    - uberongraph-v1.0.json
+    - viral-proteome-v1.0.json
+    version: v1.0
+    name: baseline-graph
+    format: json
+  - files:
+    - biolink-v2.0.json
+    - ctd-v2.0.json
+    - gtopdb-v2.0.json
+    - hetio-v2.0.json
+    - hgnc-v2.0.json
+    - hmdb-v2.0.json
+    - kegg-v2.0.json
+    - mychem-v2.0.json
+    - ontological-hierarchy-v2.0.json
+    - panther-v2.0.json
+    - foodb-v2.0.json
+    - pharos-v2.0.json
+    - intact-v2.0.json
+    - human-goa-v2.0.json
+    - uberongraph-v2.0.json
+    - viral-proteome-v2.0.json
+    version: v2.0
+    name: baseline-graph
+    format: json
+  - files:
+      - heal/sparc/curation-export-processed.json
+    version: v2.0
+    name: sparc-kgx
+    format: json
+  - files:
+      - Biolink_edges_v3.0.jsonl
+      - Biolink_nodes_v3.0.jsonl
+      - CTD_edges_v3.0.jsonl
+      - CTD_nodes_v3.0.jsonl
+      - DrugCentral_edges_v3.0.jsonl
+      - DrugCentral_nodes_v3.0.jsonl
+      - GtoPdb_edges_v3.0.jsonl
+      - GtoPdb_nodes_v3.0.jsonl
+      - Hetio_edges_v3.0.jsonl
+      - Hetio_nodes_v3.0.jsonl
+      - HGNC_edges_v3.0.jsonl
+      - HGNC_nodes_v3.0.jsonl
+      - HMDB_edges_v3.0.jsonl
+      - HMDB_nodes_v3.0.jsonl
+      - HumanGOA_edges_v3.0.jsonl
+      - HumanGOA_nodes_v3.0.jsonl
+      - IntAct_edges_v3.0.jsonl
+      - IntAct_nodes_v3.0.jsonl
+      - OntologicalHierarchy_edges_v3.0.jsonl
+      - OntologicalHierarchy_nodes_v3.0.jsonl
+      - PANTHER_edges_v3.0.jsonl
+      - PANTHER_nodes_v3.0.jsonl
+      - PHAROS_edges_v3.0.jsonl
+      - PHAROS_nodes_v3.0.jsonl
+      - UberGraph_edges_v3.0.jsonl
+      - UberGraph_nodes_v3.0.jsonl
+    version: v3.0
+    name: baseline-graph
+    format: jsonl
+  - version: test
+    files:
+    - hgnc_nodes.jsonl
+    - hgnc_edges.jsonl
+    name: test
+  - version: v3.0
+    name: cde-graph
+    format: jsonl
+    files:
+      - cde/annotated_edges_v3.0.jsonl
+      - cde/annotated_nodes_v3.0.jsonl
+dug_inputs:
+  versions:
+    - name: bdc
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/bdc_dbgap_data_dicts.tar.gz"
+        stars:
+          - "bdc_dbgap_data_dicts.tar.gz"
+      format: dbGaP
+    - name: nida
+      version: v1.0
+      files:
+        s3:
+          - "nida/v1.0/nida-12studies.tar.gz"
+        stars:
+          - "nida-12studies.tar.gz"
+      format: nida
+    - name: sparc
+      version: v1.0
+      files:
+        s3:
+          - "sparc/v1.0/sparc-dbgap-xml-formatted.tar.gz"
+        stars:
+          - "sparc-dbgap-xml-formatted.tar.gz"
+      format: sparc
+    - name: anvil
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/anvil_dbgap_data_dicts.tar.gz"
+        stars:
+          - "anvil_dbgap_data_dicts.tar.gz"
+      format: anvil

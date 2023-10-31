@@ -533,7 +533,7 @@ Open localhost:8080 in a browser.
 
 Then run:
 ```
-python tranql_translator.py
+python tranql_translate.py
 ```
 The Airflow interface shows the workflow:
 ![image](https://user-images.githubusercontent.com/306971/97787955-b968f680-1b8b-11eb-86cc-4d93842eafd3.png)
