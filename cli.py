@@ -4,12 +4,15 @@ from roger.logger import get_logger
 from dug_helpers.dug_utils import DugUtil, get_topmed_files, get_dbgap_files, get_sparc_files, get_anvil_files, get_nida_files
 import sys
 import argparse
+import os
+import time
 
 
 log = get_logger()
 
 if __name__ == "__main__":
-
+    start = time.time()
+    log.info(f"Start TIME:{start}")
     parser = argparse.ArgumentParser(description='Roger common cli tool.')
     """ Common CLI. """
     parser.add_argument('-d', '--data-root', help="Root of data hierarchy", default=None)
@@ -102,4 +105,8 @@ if __name__ == "__main__":
     if args.validate_concepts:
         DugUtil.validate_indexed_concepts(config=config)
 
+    end = time.time()
+    time_elapsed = end - start
+    log.info(f"Completion TIME:{time_elapsed}")
+    
     sys.exit (0)

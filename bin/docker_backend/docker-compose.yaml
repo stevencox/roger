@@ -22,9 +22,9 @@ services:
       - roger-network
     environment:
       - REDIS_PASSWORD=$ROGERENV_REDISGRAPH_PASSWORD
-    entrypoint: /usr/local/bin/gunicorn --workers=2 --bind=0.0.0.0:8081 --name=tranql --timeout=600 tranql.api:app
+    entrypoint: /usr/local/bin/gunicorn --workers=2 --bind=0.0.0.0:8001 --name=tranql --timeout=600 tranql.api:app
     ports:
-    - 8081:8081
+    - 8001:8001
     volumes:
     - ./tranql-schema.yaml:/tranql/tranql/conf/schema.yaml
   #################################################################################

@@ -1,4 +1,5 @@
-PYTHON       = 	PYTHONPATH=dags /usr/bin/env python3
+PYTHON       = $(shell which python3)
+PYTHONPATH   = dags
 VERSION_FILE = ./dags/_version.py
 VERSION      = $(shell cut -d " " -f 3 ${VERSION_FILE})
 DOCKER_REPO  = docker.io
@@ -17,10 +18,12 @@ help:
 mk_dirs:
 	mkdir -p {logs,plugins}
 	mkdir -p local_storage/elastic
+	mkdir -p local_storage/redis
 
 rm_dirs:
 	rm -rf logs/*
 	rm -rf local_storage/elastic/*
+	rm -rf local_storage/redis/*
 	rm -rf ./dags/roger/data/*
 
 #install: Install application along with required packages to local environment

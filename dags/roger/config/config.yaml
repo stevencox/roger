@@ -92,6 +92,8 @@ elasticsearch:
   username: elastic
   password: ""
   nboost_host: ""
+  scheme: "http"
+  ca_path: ""
 
 validation:
   queries:
