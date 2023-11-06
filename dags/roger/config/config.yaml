@@ -44,6 +44,7 @@ bulk_loader:
 
 annotation:
   clear_http_cache: false
+  annotator_type: "annotator_monarch"
   annotator: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
   normalizer: "https://nodenormalization-dev.apps.renci.org/get_normalized_nodes?conflate=false&description=true&curie="
   synonym_service: "https://name-resolution-sri.renci.org/reverse_lookup"

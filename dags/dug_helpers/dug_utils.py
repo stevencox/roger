@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Union, List
 
 import requests
-from dug.core import get_parser, get_plugin_manager, DugConcept
-from dug.core.annotate import DugAnnotator, ConceptExpander
+from dug.core import get_parser, get_annotator, get_plugin_manager, DugConcept
+from dug.core.concept_expander import ConceptExpander
 from dug.core.crawler import Crawler
 from dug.core.factory import DugFactory
 from dug.core.parsers import Parser, DugElement
+from dug.core.annotators import Annotator
 from dug.core.async_search import Search
 from dug.core.index import Index
 
@@ -44,7 +45,9 @@ class Dug:
             self.string_handler = logging.StreamHandler(self.log_stream)
             log.addHandler(self.string_handler)
 
-        self.annotator: DugAnnotator = self.factory.build_annotator()
+        dug_plugin_manager = get_plugin_manager()
+        annotator_name =  self.config["annotation"]["annotator_type"]
+        self.annotator: Annotator = get_annotator(dug_plugin_manager.hook, annotator_name)
 
         self.tranqlizer: ConceptExpander = self.factory.build_tranqlizer()
 

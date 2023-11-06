@@ -6,7 +6,8 @@ flatten-dict
 redisgraph-bulk-loader==0.12.3
 pytest
 PyYAML
-git+https://github.com/helxplatform/dug@2.12.0
+# git+https://github.com/helxplatform/dug@2.12.0
+git+https://github.com/helxplatform/dug@329-annotator-modules # Dug version to test annotator modules
 orjson
 kg-utils==0.0.6
 bmt==1.1.0
