@@ -1,0 +1,12 @@
+schema:
+    redis:
+      doc: |
+        Roger is a knowledge graph built by aggregeting several kgx formatted knowledge graphs from several sources.
+      url: "redis:"
+      redis: true
+      redis_connection_params:
+        # Host here is the service name in the docker composed container.
+        host: redis
+        port: 6379
+        # SET USERNAME and PASSWORD
+        # via ROGER_USERNAME , ROGER_PASSWORD Env vars (i.e capitialize service name)

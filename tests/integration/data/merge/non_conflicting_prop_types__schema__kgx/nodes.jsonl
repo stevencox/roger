@@ -1,0 +1,3 @@
+{"id": "ID1", "category": ["named_thing"], "list_attr": [], "bool_attr": false, "int_attr": 0}
+{"id": "ID2", "category": ["named_thing"], "str_attr": "", "float_attr": 0.0}
+{"id": "Id3", "category": ["some_other_type"], "attr_1": "", "attr_2": [], "attr_3": true, "attr_4": 1}

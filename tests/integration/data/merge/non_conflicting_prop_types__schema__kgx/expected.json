@@ -1,0 +1,43 @@
+{
+  "category-schema.json": {
+    "named_thing": {
+      "str_attr": "str",
+      "list_attr": "list",
+      "bool_attr": "bool",
+      "int_attr": "int",
+      "float_attr": "float",
+      "id": "str",
+      "category": "list"
+    },
+    "some_other_type": {
+      "id": "str",
+      "category": "list",
+      "attr_1": "str",
+      "attr_2": "list",
+      "attr_3": "bool",
+      "attr_4": "int"
+    }
+  },
+  "predicate-schema.json": {
+    "edge_label_1": {
+      "id": "str",
+      "edge_label": "str",
+      "str_attr": "str",
+      "list_attr": "list",
+      "bool_attr": "bool",
+      "int_attr": "int",
+      "float_attr": "float",
+      "predicate": "str"
+    },
+    "edge_label_2": {
+      "id": "str",
+      "str_attr": "str",
+      "edge_label": "str",
+      "bool_attr": "bool",
+      "float_attr": "float",
+      "int_attr":  "int",
+      "str_att": "str",
+      "predicate": "str"
+    }
+  }
+}
