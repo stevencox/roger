@@ -1,0 +1,2 @@
+{"id": "edge_1", "edge_label": "edge_type_1", "list_vs_str": [], "list_vs_int": [], "list_vs_bool": [], "list_vs_float": [], "str_vs_float": "", "str_vs_bool": "", "str_vs_int": "", "int_vs_bool": 0, "int_vs_float": 0, "float_vs_bool": 0, "predicate":  "related_to"}
+{"id": "edge_2", "edge_label": "edge_type_1", "list_vs_str": "", "list_vs_int": 0, "list_vs_bool": true, "list_vs_float": 0.0, "str_vs_float": 0.0, "str_vs_bool": false, "str_vs_int": 0, "int_vs_bool": true, "int_vs_float": 0.0, "float_vs_bool": true, "predicate":  "related_to" }

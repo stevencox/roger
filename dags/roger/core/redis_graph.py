@@ -1,18 +1,22 @@
-import logging
+import copy
+
 import redis
-from redisgraph import Node, Edge, Graph
-from redis.exceptions import ResponseError
-from roger.roger_util import get_config, get_logger
+# from redisgraph import Node, Edge, Graph
+# https://redis-py.readthedocs.io/en/v4.5.1/redismodules.html#redisgraph-commands
+from redis.commands.graph.node import Node
+from redis.commands.graph.edge import Edge
+
+from roger.logger import get_logger
 
 logger = get_logger ()
 
 class RedisGraph:
     """ Graph abstraction over RedisGraph. A thin wrapper but provides us some options. """
     
-    def __init__(self, host='localhost', port=6379, graph='default'):
+    def __init__(self, host='localhost', port=6379, graph='default', password=''):
         """ Construct a connection to Redis Graph. """
-        self.r = redis.Redis(host=host, port=port)
-        self.redis_graph = Graph(graph, self.r)
+        self.r = redis.Redis(host=host, port=port, password=password)
+        self.redis_graph = self.r.graph(graph)
 
     def add_node (self, identifier=None, label=None, properties=None):
         """ Add a node with the given label and properties. """
@@ -57,7 +61,7 @@ class RedisGraph:
     def query (self, query):
         """ Query and return result set. """
         result = self.redis_graph.query(query)
-        result.pretty_print()
+        print(result)
         return result
     
     def delete (self):

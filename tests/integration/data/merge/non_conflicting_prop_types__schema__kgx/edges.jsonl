@@ -1,0 +1,4 @@
+{"edge_label": "edge_label_1", "id": "x", "bool_attr": false, "int_attr": 0, "float_attr": 0.0 , "predicate": "edge_label_1"}
+{"edge_label": "edge_label_1", "id": "x3", "str_attr": "str", "list_attr": [], "predicate": "edge_label_1"}
+{"edge_label": "edge_label_2", "id": "x4", "str_attr": "str", "predicate": "edge_label_2"}
+{"edge_label": "edge_label_2", "id": "x3", "bool_attr": true, "float_attr": 2.33, "int_attr": 3092, "str_att": "name", "predicate": "edge_label_2"}

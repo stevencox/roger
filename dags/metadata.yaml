@@ -1,0 +1,194 @@
+kgx:
+  versions:
+  - files:
+    - biolink-v1.0.json
+    - ctd-v1.0.json
+    - gtopdb-v1.0.json
+    - hetio-v1.0.json
+    - hgnc-v1.0.json
+    - hmdb-v1.0.json
+    - kegg-v1.0.json
+    - mychem-v1.0.json
+    - ontological-hierarchy-v1.0.json
+    - panther-v1.0.json
+    - foodb-v1.0.json
+    - pharos-v1.0.json
+    - intact-v1.0.json
+    - human-goa-v1.0.json
+    - uberongraph-v1.0.json
+    - viral-proteome-v1.0.json
+    version: v1.0
+    name: baseline-graph
+    format: json
+  - files:
+    - biolink-v2.0.json
+    - ctd-v2.0.json
+    - gtopdb-v2.0.json
+    - hetio-v2.0.json
+    - hgnc-v2.0.json
+    - hmdb-v2.0.json
+    - kegg-v2.0.json
+    - mychem-v2.0.json
+    - ontological-hierarchy-v2.0.json
+    - panther-v2.0.json
+    - foodb-v2.0.json
+    - pharos-v2.0.json
+    - intact-v2.0.json
+    - human-goa-v2.0.json
+    - uberongraph-v2.0.json
+    - viral-proteome-v2.0.json
+    version: v2.0
+    name: baseline-graph
+    format: json
+  - files:
+      - heal/sparc/curation-export-processed.json
+    version: v2.0
+    name: sparc-kgx
+    format: json
+  - files:
+      - Biolink_edges_v3.0.jsonl
+      - Biolink_nodes_v3.0.jsonl
+      - CTD_edges_v3.0.jsonl
+      - CTD_nodes_v3.0.jsonl
+      - DrugCentral_edges_v3.0.jsonl
+      - DrugCentral_nodes_v3.0.jsonl
+      - GtoPdb_edges_v3.0.jsonl
+      - GtoPdb_nodes_v3.0.jsonl
+      - Hetio_edges_v3.0.jsonl
+      - Hetio_nodes_v3.0.jsonl
+      - HGNC_edges_v3.0.jsonl
+      - HGNC_nodes_v3.0.jsonl
+      - HMDB_edges_v3.0.jsonl
+      - HMDB_nodes_v3.0.jsonl
+      - HumanGOA_edges_v3.0.jsonl
+      - HumanGOA_nodes_v3.0.jsonl
+      - IntAct_edges_v3.0.jsonl
+      - IntAct_nodes_v3.0.jsonl
+      - OntologicalHierarchy_edges_v3.0.jsonl
+      - OntologicalHierarchy_nodes_v3.0.jsonl
+      - PANTHER_edges_v3.0.jsonl
+      - PANTHER_nodes_v3.0.jsonl
+      - PHAROS_edges_v3.0.jsonl
+      - PHAROS_nodes_v3.0.jsonl
+      - UberGraph_edges_v3.0.jsonl
+      - UberGraph_nodes_v3.0.jsonl
+    version: v3.0
+    name: baseline-graph
+    format: jsonl
+  - version: test
+    files:
+    - panther.json
+    name: test
+  - version: v3.0
+    name: cde-graph
+    format: jsonl
+    files:
+      - cde/annotated_edges_v3.0.jsonl
+      - cde/annotated_nodes_v3.0.jsonl
+  - version: v4.0
+    name: baseline-graph
+    format: jsonl
+    files:
+      - baseline-4.0/edges_v4.0.jsonl
+      - baseline-4.0/nodes_v4.0.jsonl
+  - version: v4.0
+    name: cde-graph
+    format: jsonl
+    files:
+      - cde/annotated_edges_v4.0.jsonl
+      - cde/annotated_nodes_v4.0.jsonl
+dug_inputs:
+  versions:
+    - name: bdc
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/bdc_dbgap_data_dicts.tar.gz"
+        stars:
+          - "bdc_dbgap_data_dicts.tar.gz"
+      format: dbGaP
+    - name: bdc
+      version: v2.0
+      files:
+        s3:
+          - "bdc/v2.0/bdc_dbgap_data_dicts.tar.gz"
+        stars:
+          - "bdc_dbgap_data_dicts.tar.gz"
+      format: dbGaP
+    - name: bdc
+      version: v3.0
+      files:
+        s3:
+          - "bdc/v3.0/bdc_dbgap_data_dicts.tar.gz"
+      format: dbGaP
+    - name: nida
+      version: v1.0
+      files:
+        s3:
+          - "nida/v1.0/nida-12studies.tar.gz"
+        stars:
+          - "nida-12studies.tar.gz"
+      format: nida
+    - name: sparc
+      version: v1.0
+      files:
+        s3:
+          - "sparc/v1.0/sparc-dbgap-xml-formatted.tar.gz"
+        stars:
+          - "sparc-dbgap-xml-formatted.tar.gz"
+      format: sparc
+    - name: topmed
+      version: v2.0
+      files:
+        s3:
+          - "topmed/v2.0/topmed_tags_v2.0.json"
+          - "topmed/v2.0/topmed_variables_v2.0.csv"
+        stars:
+          - topmed_variables_v2.0.csv
+          - topmed_tags_v2.0.json
+      format: topmed
+    - name: anvil
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/anvil_dbgap_data_dicts.tar.gz"
+        stars:
+          - "anvil_dbgap_data_dicts.tar.gz"
+      format: anvil
+    - name: kfdrc
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/KFDRC.tar.gz"
+      format: kfdrc
+    - name: crdc
+      version: v1.0
+      files:
+        s3:
+          - "bdc/v1.0/CRDC.tar.gz"
+      format: crdc
+    - name: sprint
+      version: v1.0
+      files:
+        s3:
+          - "sprint/v1.0/StanfordSPRINT_DataDictionary_2020-12-16.tar.gz"
+      format: sprint
+    - name: bacpac
+      version: v1.0
+      files:
+        s3:
+          - "heal-datasets/bacpac/bacpac_baseline_do_measures.tar.gz"
+      format: bacpac
+    - name: heal-studies
+      version: v1.0
+      files:
+        s3:
+          - heal-datasets/ingest-8-23/heal_studies.tar.gz      
+          - heal-datasets/ingest-8-23/heal_mds_import.tar.gz
+      format: heal-studies
+    - name: heal-research-programs
+      version: v1.0
+      files:
+        s3:
+          - heal-datasets/ingest-8-23/heal_research_programs.tar.gz
+      format: heal-research

@@ -1,0 +1,4 @@
+[MAIN]
+disable=invalid-name,
+	no-member,
+	no-value-for-parameter

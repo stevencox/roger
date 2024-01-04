@@ -1,0 +1,68 @@
+version: '3.0'
+
+#################################################################################
+##
+## A service stack for the Roger pipeline.
+##
+#################################################################################
+services:
+
+  #################################################################################
+  ##
+  ## The OpenAPI endpoint for search. This is the only service to be
+  ## exposed beyond the internal network.
+  ##
+  #################################################################################
+  tranql:
+    image: renciorg/tranql-app:0.35
+    depends_on:
+      - redis
+    restart: always
+    networks:
+      - roger-network
+    environment:
+      - REDIS_PASSWORD=$ROGERENV_REDISGRAPH_PASSWORD
+    entrypoint: /usr/local/bin/gunicorn --workers=2 --bind=0.0.0.0:8001 --name=tranql --timeout=600 tranql.api:app
+    ports:
+    - 8001:8001
+    volumes:
+    - ./tranql-schema.yaml:/tranql/tranql/conf/schema.yaml
+  #################################################################################
+  ##
+  ## A search engine providing scalable indexing and full text search.
+  ##
+  #################################################################################
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.6.1
+    networks:
+      - roger-network
+    environment:
+      - ELASTIC_PASSWORD=$ROGERENV_ELASTIC__SEARCH_PASSWORD
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+    volumes:
+      - ./data/elastic:/bitnami/elasticsearch/data
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+
+  #################################################################################
+  ##
+  ## A memory cache for results of high volume service requests.
+  ##
+  #################################################################################
+  redis:
+    image: 'redislabs/redisgraph'
+    networks:
+      - roger-network
+    command: redis-server --requirepass ${ROGERENV_REDISGRAPH_PASSWORD} --loadmodule /usr/lib/redis/modules/redisgraph.so
+    environment:
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - '6379:6379'
+
+networks:
+  roger-network:
+    driver: bridge

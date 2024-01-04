@@ -1,0 +1,160 @@
+redisgraph:
+  username: ""
+  password: "12345"
+  host: localhost
+  graph: test
+  port: 6379
+
+logging:
+  level: DEBUG
+  format: '[%(name)s][%(filename)s][%(lineno)d][%(funcName)20s] %(levelname)s: %(message)s'
+
+data_root: roger/data
+
+kgx_base_data_uri: https://stars.renci.org/var/kgx_data/
+annotation_base_data_uri: https://stars.renci.org/var/dug/
+
+kgx:
+  biolink_model_version: v3.1.2
+  dataset_version: v4.0
+  merge_db_id: 1
+  merge_db_temp_dir: workspace
+  data_sets:
+    - baseline-graph
+
+dug_inputs:
+  data_source: s3
+  data_sets:
+    - topmed:v1.0
+    - bdc:v1.0
+    - anvil:v1.0
+
+#https://github.com/RedisGraph/redisgraph-bulk-loader/blob/master/redisgraph_bulk_loader/bulk_insert.py#L43
+bulk_loader:
+  separator: 0x1E
+  enforce_schema: False
+  skip_invalid_nodes: False
+  skip_invalid_edges: False
+  quote: 0
+  max_token_count: 1024
+  max_buffer_size: 2048
+  max_token_size: 500
+  index: []
+  full_text_index: []
+
+annotation:
+  clear_http_cache: false
+  annotator_type: "annotator_monarch"
+  annotator: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
+  normalizer: "https://nodenormalization-dev.apps.renci.org/get_normalized_nodes?conflate=false&description=true&curie="
+  synonym_service: "https://name-resolution-sri.renci.org/reverse_lookup"
+  ontology_metadata: "https://api.monarchinitiative.org/api/bioentity/"
+  preprocessor:
+    debreviator:
+      BMI: "body mass index"
+    stopwords: "the"
+  ontology_greenlist: ["PATO", "CHEBI", "MONDO", "UBERON", "HP", "MESH", "UMLS"]
+
+indexing:
+  # colon seperated mappings list by comma
+  # eg : dbgap:Non-HEAL Studies,bacpac:HEAL Research Programs
+  element_mapping: ""
+  variables_index: "variables_index"
+  concepts_index: "concepts_index"
+  kg_index: "kg_index"
+  tranql_min_score: 0.2
+  excluded_identifiers:
+    - "CHEBI:17336"
+  queries:
+    "disease": ["disease", "phenotypic_feature"]
+    "pheno": ["phenotypic_feature", "disease"]
+    "anat": ["disease", "anatomical_entity"]
+    "chem_to_disease": ["chemical_entity", "disease"]
+    "small_molecule_to_disease": ["small_molecule", "disease"]
+    "chemical_mixture_to_disease": ["chemical_mixture", "disease"]
+    "phen_to_anat": ["phenotypic_feature", "anatomical_entity"]
+  tranql_endpoint: "http://tranql:8081/tranql/query?dynamic_id_resolution=true&asynchronous=false"
+  node_to_element_queries:
+    enabled: false
+    cde:
+      node_type: biolink:Publication
+      curie_prefix: "HEALCDE"
+      list_field_choose_first: 
+        - "files"
+      attribute_mapping:
+        name: "name"
+        desc: "summary"
+        collection_name: "cde_category"
+        collection_id: "cde_category"
+        collection_action: "files"
+
+elasticsearch:
+  host: elasticsearch
+  username: elastic
+  password: ""
+  nboost_host: ""
+  scheme: "http"
+  ca_path: ""
+
+validation:
+  queries:
+    count_nodes:
+      name: "Count Nodes"
+      query: "MATCH (a) RETURN COUNT(a)"
+    count_edges:
+      name: "Count Edges"
+      query: "MATCH (a)-[e]-(b) RETURN COUNT(e)"
+    connectivity:
+      name: TOPMED Connectivity
+      query: "MATCH (a { id : '$var' })--(b) RETURN a.category, b.id"
+      args:
+      - var: TOPMED.TAG:8
+      - var: TOPMED.VAR:phv00000484.v1.p10
+      - var: TOPMED.VAR:phv00000487.v1.p10
+      - var: TOPMED.VAR:phv00000496.v1.p10
+      - var: TOPMED.VAR:phv00000517.v1.p10
+      - var: TOPMED.VAR:phv00000518.v1.p10
+      - var: TOPMED.VAR:phv00000528.v1.p10
+      - var: TOPMED.VAR:phv00000529.v1.p10
+      - var: TOPMED.VAR:phv00000530.v1.p10
+      - var: TOPMED.VAR:phv00000531.v1.p10
+    count_connected_nodes:
+      name: Count Connected Nodes
+      query: "MATCH (a)-[e]-(b) RETURN count(a), count(b)"
+    query_by_type:
+      name: Query by Type
+      query: "MATCH (a:gene)-[e]-(b) WHERE 'chemical_substance' IN b.category RETURN count(distinct(a)), count(distinct(b))"
+    smiles_values:
+      name: Query Chemicals with smiles that look like arrays
+      query: "Match (a: chemical_substance { simple_smiles: '$var' }) RETURN a.id"
+      args:
+      - var: "[Os+6]"
+      - var: "[SiH2]"
+      - var: "[CH]"
+      - var: "[S-2]"
+      - var: "[Ti+4]"
+      - var: "[P-3]"
+      - var: "[Ca+2]"
+      - var: "[Au+3]"
+      - var: "[TeH2]"
+      - var: "[Pb]"
+      - var: "[B+]"
+      - var: "[AsH]"
+      - var: "[O-][I+2]([O-])[O-]"
+      - var: "[He+]"
+      - var: "[Mo+6]"
+      - var: "[N-]=[N+]=[N-]"
+      - var: "[Ag+]"
+      - var: "[Zn+2]"
+      - var: "[C-]#[O+]"
+s3:
+  host: ""
+  bucket: ""
+  access_key: ""
+  secret_key: ""
+
+lakefs_config:
+  enabled: false
+  access_key_id: ""
+  secret_access_key: ""
+  host: ""
