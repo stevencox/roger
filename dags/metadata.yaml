@@ -97,6 +97,18 @@ kgx:
     files:
       - cde/annotated_edges_v4.0.jsonl
       - cde/annotated_nodes_v4.0.jsonl
+  - version: v5.0
+    name: baseline-graph
+    format: jsonl
+    files:
+      - baseline-5.0/edges_v5.0.jsonl
+      - baseline-5.0/nodes_v5.0.jsonl
+  - version: v5.0
+    name: cde-graph
+    format: jsonl
+    files:
+      - cde/annotated_edges_v5.0.jsonl
+      - cde/annotated_nodes_v5.0.jsonl
 dug_inputs:
   versions:
     - name: bdc

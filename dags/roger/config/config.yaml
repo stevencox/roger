@@ -16,7 +16,7 @@ annotation_base_data_uri: https://stars.renci.org/var/dug/
 
 kgx:
   biolink_model_version: v3.1.2
-  dataset_version: v4.0
+  dataset_version: v5.0
   merge_db_id: 1
   merge_db_temp_dir: workspace
   data_sets:
@@ -85,7 +85,7 @@ indexing:
         desc: "summary"
         collection_name: "cde_category"
         collection_id: "cde_category"
-        collection_action: "files"
+        action: "files"
 
 elasticsearch:
   host: elasticsearch

@@ -10,3 +10,4 @@ git+https://github.com/helxplatform/dug@2.12.0
 orjson
 kg-utils==0.0.6
 bmt==1.1.0
+linkml-runtime==1.6.0

@@ -388,6 +388,7 @@ class Dug:
                 raise Exception(f"Validation error - Did not find {curie} for"
                                 f"Search term: {search_term}")
             else:
+                del response['total_items']
                 for element_type in response:
                     all_elements_ids = [e['id'] for e in
                                         reduce(lambda x, y: x + y['elements'], response[element_type], [])]
@@ -434,12 +435,15 @@ class Dug:
                 casting_config = query['casting_config']
                 tranql_source = query['tranql_source']
                 dug_element_type = query['output_dug_type']
-                extracted_dug_elements += crawler.expand_to_dug_element(
+                new_elements =  crawler.expand_to_dug_element(
                     concept=concept,
                     casting_config=casting_config,
                     dug_element_type=dug_element_type,
                     tranql_source=tranql_source
                 )
+                log.debug("extracted:")
+                log.debug(str(list([el.get_searchable_dict() for el in new_elements])))
+                extracted_dug_elements += new_elements
             concept.clean()
             percent_complete = int((counter / total) * 100)
             if percent_complete % 10 == 0:
